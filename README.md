@@ -7,9 +7,10 @@ Prerequisite tools:
 
 Installation :
 > For making new application, create a folder in nrf-sample folder and name is IoTConnect where you installed nRFConnet SDK .(path lool like  ....Nordic\ncs\nrf\samples\nrf9160\IoTConnect ).
-> Now unzip the nRF9160_DK SDK which you get from our IoTConnect portal
->We have main.c and main.h file in nRF9160-DK\src with IoTConnect_config.h ( you need to input CPID and deviceID and env here in  IoTConnect_config.h)
->In the other folder nRF9160-DK\IoTConnect\cert we have a certificate.h in here you have to put your device certificate 
+
+>You have to modify IoTConnect_config.h with device uniqueid, cpid and environment. You can find environment and cpid from Key Vault inside Setting of your IoTConnect's account. You can find IoTConnect_config.h inside src folder.
+
+>If you are using certficate base authenticateion then update certificates.h, you can find this file in IoTConnect\cert folder
 
 ```C-SDK
 #define CLOUD_CLIENT_PRIVATE_KEY \
