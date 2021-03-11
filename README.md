@@ -1,5 +1,4 @@
-# Softweb Solutions Inc
-## IOT Connect SDK : Software Development Kit 2.2.0
+## IOT Connect SDK for nRF: version 2.2.0
 
 Prerequisite tools:
 
