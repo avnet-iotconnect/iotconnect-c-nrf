@@ -523,6 +523,8 @@ int IoTConnect_init(char *cpID, char *UniqueID, char *Env,IOTConnectCallback Cal
         else return 1;
 
     }
+
+    return 1; // FIXME return value
 }
 
 
@@ -653,7 +655,7 @@ clean_up:
 	"Host: %s\r\n"                                                        \
 	"Content-Type: application/json; charset=utf-8\r\n"                   \
         "Connection: keep-alive\r\n"                                          \
-        "Content-length: %d\r\n\r\n"                                          \
+        "Content-length: %lu\r\n\r\n"                                         \
 	"%s"
 
 char* Sync_call(char *cpid, char *uniqueid, char *base_url){
@@ -891,13 +893,13 @@ void SendData(char *Attribute_json_Data){
 
     int parameters_count = cJSON_GetArraySize(root);    
     for (int i = 0; i < parameters_count; i++) {
-            cJSON *parameter = cJSON_GetArrayItem(root, i);
+            cJSON *param = cJSON_GetArrayItem(root, i);
             cJSON_AddItemToArray(device, Device_data1 = cJSON_CreateObject());
-            cJSON_AddStringToObject(Device_data1, "id", cJSON_GetObjectItem(parameter, "uniqueId")->valuestring);
-            cJSON_AddStringToObject(Device_data1, "dt", cJSON_GetObjectItem(parameter, "time")->valuestring);
+            cJSON_AddStringToObject(Device_data1, "id", cJSON_GetObjectItem(param, "uniqueId")->valuestring);
+            cJSON_AddStringToObject(Device_data1, "dt", cJSON_GetObjectItem(param, "time")->valuestring);
             cJSON_AddStringToObject(Device_data1, "tg", "");
             cJSON_AddItemToObject(Device_data1, "d", device2 = cJSON_CreateArray());
-            data1 = cJSON_GetObjectItem(parameter, "data");
+            data1 = cJSON_GetObjectItem(param, "data");
             cJSON_AddItemToArray(device2,data1);
             }
     To_HUB_json_data =  cJSON_PrintUnformatted(To_HUB_json);
@@ -936,7 +938,7 @@ void UpdateTwin(char *key,char *value){
 void Received_cmd(char *in_cmd){
 
     cJSON *root = NULL;
-    char *cmdValue, payLoad;
+    char *cmdValue, *payLoad;
     root = cJSON_Parse(in_cmd);
 
     cmdValue = (cJSON_GetObjectItem(root, "cmdType"))->valuestring;
@@ -974,7 +976,7 @@ void Received_cmd(char *in_cmd){
 ///////////////////////////////////////////////////////////////////////////////////
 // this will send the ACK of receiving Commands
 void SendAck(char *Ack_Data, char *ackTime, int messageType){
-    cJSON *Ack_Json2,*sdk_info,*device_input;
+    cJSON *Ack_Json2,*sdk_info;
     char *Ack_Json_Data;
     Ack_Json2 = cJSON_CreateObject();
     if (Ack_Json2 == NULL){
