@@ -10,7 +10,7 @@
   
   for more help and informationvisit https://help.iotconnect.io SDK section
 
-    modified 02/Sept/2020
+    modified 27/01/2024
 */
 
 /*
@@ -21,32 +21,21 @@ Hope you have installed the node SDK as guided on SDK documentation.
 #include "IoTConnect_Config.h"
 #include "main.h"
 
-
 /* Initialize AT communications */
 int at_comms_init(void)
 {
-	int err;
-	err = at_cmd_init();
+
+    int err;
+	err = nrf_modem_lib_init();
 	if (err) {
-		printk("Failed to initialize AT commands, err %d\n", err);
-		return err;
+		printk("Modem library initialization failed, error: %d\n", err);
+		return 0;
 	}
-	err = at_notif_init();
-	if (err) {
-		printk("Failed to initialize AT notifications, err %d\n", err);
-		return err;
-	}
-	return 0;
 }
 
 
 void main(void){  
     int err, count=0;  
-    err = bsdlib_init();
-    if (err) {
-	printk("Failed to initialize bsdlib!");
-	return ;
-	}
     
     err = at_comms_init();
     if (err) {
@@ -73,6 +62,7 @@ void main(void){
 - IOTCONNECT_DEVICE_ENV                :: You need to pass respective environment of IoTConnecct platform
 Note : 
 */
+    k_msleep(2000);
     err = IoTConnect_init(IOTCONNECT_DEVICE_CP_ID, IOTCONNECT_DEVICE_UNIQUE_ID, IOTCONNECT_DEVICE_ENV, Device_CallBack, Twin_CallBack);
     if (err) {
 	printk("Failed to Init IoTConnect SDK");
@@ -93,7 +83,7 @@ Output  : All twin property will receive in above callback function "twinUpdateC
     //getAllTwins()
 
 
-    while(count < 10){
+    while(count < 1000){
 
         MQTT_looP();
         
@@ -107,7 +97,7 @@ Output  :
 Input   : Predefined data object 
 */
 		SendData(Attribute_json_Data);
-		k_sleep(15000);
+		k_msleep(15000);
 		count++ ;   
       }
 
@@ -130,34 +120,52 @@ Note : It will disconnect the device after defined time
 
 
 
-char *key = "twin01", *value = NULL;
+
 /*
-Type    : Callback Function "Twin_CallBack()"
+Type    : Callback Function "TwinUpdateCallback()"
 Usage   : Manage twin properties as per business logic to update the twin reported property
 Output  : Receive twin properties Desired, Reported
 Input   : 
 */
 void Twin_CallBack(char *topic, char *payload) {      
+    char *key = NULL, *value = NULL;
+    int device_type;
     printk("\n Twin_msg payload is >>  %s", payload);
-
-    if(! strncmp(topic,"$iothub/twin/PATCH/properties/",30)){   
-        cJSON *root = cJSON_Parse(payload);        
-        cJSON *P = cJSON_GetObjectItemCaseSensitive(root, "desired");
-        value = (cJSON_GetObjectItem(P, key))->valuestring;
-		
-/*
-Type    : Public Method "updateTwin()"
-Usage   : Upate the twin reported property
-Output  : 
-Input   : "key" and "value" as below
-          // String key = "<< Desired property key >>"; // Desired proeprty key received from Twin callback message
-          // String value = "<< Desired Property value >>"; // Value of respective desired property
-*/    
-        UpdateTwin(key,value);
-    }
-    else{
-        printk("\n Twin_msg on topic >> %s and payload is >>  %s", topic, payload);
     
+    cJSON *root = cJSON_Parse(payload);        
+    cJSON *D = cJSON_GetObjectItem(root, "desired");
+    if(D) {
+        cJSON *device = D->child;
+        while (device) {
+            if (!strcmp(device->string, "$version")) {}
+            else {
+                key = device->string;
+                device_type = device->type;
+                if(device_type == 8){ 
+                    int  int_val;
+                    double diff, flot_val;
+                    flot_val = (cJSON_GetObjectItem(D, key))->valuedouble;
+                    int_val = flot_val;
+                    diff = flot_val - int_val;
+                    if (diff > 0) {} 
+                    if (diff <= 0){
+                        printf("\nint value: %d", (cJSON_GetObjectItem(D, key))->valueint);
+                        updateTwin_int(key, int_val);
+                    }
+                }
+                if (device_type == 16){
+                    //strcpy((char*)value, *(char*)(cJSON_GetObjectItem(D, key))->valuestring);
+                    value = (cJSON_GetObjectItem(D, key))->valuestring;
+                    printf("\nstring value: %s", value);
+                    UpdateTwin(key,value);
+                }
+                if (device_type == 4 || device_type == 64){
+                    printf("\n Removed twin %s has value NULL\n", key);
+
+                }
+            }
+            device = device->next;
+        }		
     }
 }
 
@@ -170,34 +178,83 @@ Input   :
 */
 void Device_CallBack(char *topic, char *payload) {      
     
-    cJSON *Ack_Json;
-    int Status = 0,mt=0;
-    char *cmd_ackID, *Cmd_value, *Ack_Json_Data;
-    printk("\n Cmd_msg >>  %s",payload);   
-     
+    cJSON *Ack_Json, *sub_value, *in_url;
+    int Status = 0,magType=0;
+    char *cmd_ackID, *Cmd_value, *Ack_Json_Data, *cmd_Uni="";
+    char data_to_print[120+1];
+    char *find;
+    int len;
+    
+
+    find = strstr(payload, "guid");
+    len = (find-payload) - 6;
+    if (len>120)
+        len = 120;
+    memset(data_to_print, 0, sizeof(data_to_print));
+    memcpy(&data_to_print, &payload[4], len);
+    printk("\n Cmd_msg >> %s", &data_to_print);   
+
     cJSON *root = cJSON_Parse(payload);
     cmd_ackID = (cJSON_GetObjectItem(root, "ackId"))->valuestring;
     Cmd_value = (cJSON_GetObjectItem(root, "cmdType"))->valuestring;
-    if( !strcmp(Cmd_value,"0x01") ){Status = 6; mt = 5;}
-    else if( !strcmp(Cmd_value,"0x02") ) {Status = 7; mt = 11;}
-    else { };
+
+    if( !strcmp(Cmd_value,"0x16"))
+	{
+		sub_value = cJSON_GetObjectItem(root,"command");
+		int CMD = sub_value->valueint;
+		if(CMD == 1){
+			printk("\r\n\t ** Device Connected ** \n");
+		} 
+		else if(CMD == 0) 
+		{
+			printk("\r\n\t ** Device Disconnected ** \n");
+		}
+		return;
+    }
+
+    if( !strcmp(Cmd_value,"0x01") )
+	{
+		Status = 6; magType = 5;
+	}
+    else if( !strcmp(Cmd_value,"0x02") ) 
+	{
+        Status = 7; magType = 11;
+    	sub_value = cJSON_GetObjectItem(root,"urls");
+		if(cJSON_IsArray(sub_value)){
+            in_url = cJSON_GetArrayItem(sub_value, 0);
+            sub_value = cJSON_GetObjectItem(in_url, "uniqueId");
+            if(cJSON_IsString(sub_value))
+			cmd_Uni = sub_value->valuestring;
+		}
+    } else { }
+
     Ack_Json = cJSON_CreateObject();
-    if (Ack_Json == NULL){
+    if (Ack_Json == NULL)
+	{
         printk("\nUnable to allocate Ack_Json Object in Device_CallBack");
         return ;    
     }
     cJSON_AddStringToObject(Ack_Json, "ackId",cmd_ackID);
     cJSON_AddStringToObject(Ack_Json, "msg","");
-    cJSON_AddStringToObject(Ack_Json, "childId","");
+    //cJSON_AddStringToObject(Ack_Json, "childId",cmd_Uni);
     cJSON_AddNumberToObject(Ack_Json, "st", Status);
 
     Ack_Json_Data = cJSON_PrintUnformatted(Ack_Json);
     
-    // Sending ACk of command with Json(String), msg Type(int) and Current Time(String)  
-    SendAck(Ack_Json_Data, Get_Time(), mt);
+    /*
+    Type    : Public Method "sendAck()"
+    Usage   : Send firmware command received acknowledgement to cloud
+      - status Type
+		st = 6; // Device command Ack status 
+		st = 7; // firmware OTA command Ack status 
+        st = 4; // Failed Ack
+      - Message Type
+		msgType = 5; // for "0x01" device command 
+        msgType = 11; // for "0x02" Firmware command
+    */  
+    SendAck(Ack_Json_Data, magType);
     cJSON_Delete(Ack_Json);
- }
-
+}
 
 
 // All Sensor telemetry data formation here in JSON 
@@ -216,12 +273,12 @@ char *Sensor_data(void){
       cJSON_AddStringToObject(Device_data1, "uniqueId",IOTCONNECT_DEVICE_UNIQUE_ID);
       cJSON_AddStringToObject(Device_data1, "time", Get_Time());
       cJSON_AddItemToObject(Device_data1, "data", Data = cJSON_CreateObject());
-      cJSON_AddStringToObject(Data,"Humidity", "Black" );
-      cJSON_AddNumberToObject(Data, "Temperature",  18);
+      cJSON_AddNumberToObject(Data,"Humidity",30);
+      cJSON_AddNumberToObject(Data, "Temperature",18);
       cJSON_AddItemToObject(Data, "Gyroscope", Data1 = cJSON_CreateObject());
-      cJSON_AddNumberToObject(Data1, "x",  128);
-      cJSON_AddStringToObject(Data1, "y", "Black" );
-      cJSON_AddNumberToObject(Data1, "z",  318);
+      cJSON_AddNumberToObject(Data1,"X",128);
+      cJSON_AddNumberToObject(Data1,"Y",148);
+      cJSON_AddNumberToObject(Data1,"Z",318);
       
       char *msg = cJSON_PrintUnformatted(Attribute_json);
       cJSON_Delete(Attribute_json);

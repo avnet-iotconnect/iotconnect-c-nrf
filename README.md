@@ -1,16 +1,18 @@
-## IOT Connect SDK for nRF: version 2.2.0
+# Softweb Solutions Inc
+## IOT Connect SDK : Software Development Kit 3.1
 
 Prerequisite tools:
 
-> Install nRF9160 SDK with 1.2.0 version and complete Getting Started with nRF9160 DK.
-	(https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/index.html)
+1.	Install nRF9160 nrf SDK with 2.5.0 version along with modem firmware version 1.3.5 and complete Getting Started with nRF9160 DK.
+	- Reference link to install (https://developer.nordicsemi.com/nRF_Connect_SDK/doc/2.5.0/nrf/installation.html)
 
 Installation :
-> For making new application, create a folder in nrf-sample folder and name is IoTConnect where you installed nRFConnet SDK .(path lool like  ....Nordic\ncs\nrf\samples\nrf9160\IoTConnect ).
-
->You have to modify IoTConnect_config.h with device uniqueid, cpid and environment. You can find environment and cpid from Key Vault inside Setting of your IoTConnect's account. You can find IoTConnect_config.h inside src folder.
-
->If you are using certficate base authenticateion then update certificates.h, you can find this file in IoTConnect\cert folder
+1. 	For making new application, create a folder in nrf-sample folder and name is "IoTConnect" where you installed nRFConnet SDK.
+	- Path to create folder : e.g.(C:\nordic\v2.5.0\nrf\samples\).
+2. 	Now unzip the "iotconnect-C-sdk-nRF-3.1.zip" SDK which you can download from our IoTConnect help portal.
+3.	We have "main.c" and "main.h" file in "nRF9160-DK\src" with "IoTConnect_config.h".
+	- you need to input "uniqueIdID", "CPID" and "env" in IoTConnect_config.h file. You can see more in below section title with "Prerequisite input data"
+4.	In the other folder "nRF9160-DK\IoTConnect\cert" we have a "certificate.h" in here you have to put your device certificate. If uding x.509 CA based authentcation. 
 
 ```C-SDK
 #define CLOUD_CLIENT_PRIVATE_KEY \
@@ -27,10 +29,8 @@ Installation :
 
 #define CLOUD_CA_CERTIFICATE \
 "-----BEGIN CERTIFICATE-----\n" \
-
----- Already add in here -------
--------Do Not Change -----------
-
+----------------------------------
+----------------------------------
 "-----END CERTIFICATE-----\n"
 ```
 
