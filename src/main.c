@@ -94,7 +94,7 @@ void main(void)
     ********************************************************************************************/
     k_msleep(2000);
 
-    err = IoTConnect_init(IOTCONNECT_DEVICE_CP_ID, IOTCONNECT_DEVICE_UNIQUE_ID, IOTCONNECT_DEVICE_ENV, Device_CallBack, Twin_CallBack);
+    err = IoTConnect_Init(IOTCONNECT_DEVICE_CP_ID, IOTCONNECT_DEVICE_UNIQUE_ID, IOTCONNECT_DEVICE_ENV, Device_CallBack, Twin_CallBack);
 
     if (err) 
     {
@@ -105,13 +105,13 @@ void main(void)
     printk("Init IoTConnect SDK SUCCESS\n");
 
     /********************************************************************************************
-    Type    : Public Method "IoTConnect_connect()"
+    Type    : Public Method "IoTConnect_Connect()"
     Usage   : To connect with IoTConnect MQTT broker
     ********************************************************************************************/
     reinit:
-        if(IoTConnect_connect() != 0)
+        if(IoTConnect_Connect() != 0)
         {
-            printk("Error : IoTConnect_connect Fail\n");
+            printk("Error : IoTConnect_Connect Fail\n");
         }
 
     /********************************************************************************************
@@ -156,13 +156,13 @@ void main(void)
 
 
     /********************************************************************************************
-    Type    : Public Method "IoTConnect_abort()"
+    Type    : Public Method "IoTConnect_Abort()"
     Usage   : Disconnect the device from cloud
     Output  : 
     Input   : 
     Note : It will disconnect the device after defined time 
     ********************************************************************************************/ 
-    err = IoTConnect_abort();
+    err = IoTConnect_Abort();
     if (err)
     {
         printk("Failed to Abort IoTConnect SDK\n");
@@ -207,7 +207,7 @@ void Twin_CallBack(char *topic, char *payload)
                     if (diff <= 0)
                     {
                         printk("int value: %d\n", (cJSON_GetObjectItem(D, key))->valueint);
-                        updateTwin_int(key, int_val);
+                        UpdateTwin_Int(key, int_val);
                     }
                 }
                 if (device_type == 16)

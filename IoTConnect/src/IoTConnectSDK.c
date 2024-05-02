@@ -578,13 +578,13 @@ int MQTT_Init()
 /**********************************************
     Initialization of IoTConnect SDK
 ***********************************************/
-int IoTConnect_init(char *cpID, char *UniqueID, char *Env,IOTConnectCallback CallBack, IOTConnectCallback TwinCallBack)
+int IoTConnect_Init(char *cpID, char *UniqueID, char *Env,IOTConnectCallback CallBack, IOTConnectCallback TwinCallBack)
 {
     int retry;
     int res;
     char *sync_resp;
 
-    printk("Start IoTConnect_init\n");
+    printk("Start IoTConnect_Init\n");
     
     if(Flag_99)
     {
@@ -627,7 +627,7 @@ int IoTConnect_init(char *cpID, char *UniqueID, char *Env,IOTConnectCallback Cal
 /**********************************************
     Start MQTT init and connect with client
 ***********************************************/
-int IoTConnect_connect()
+int IoTConnect_Connect()
 {
     if(MQTT_Init() == 0)
     {
@@ -1069,7 +1069,7 @@ int getAllTwins(void)
 /*************************************************
         Disconnect SDk from IoTConnect
 *************************************************/
-int IoTConnect_abort(void)
+int IoTConnect_Abort(void)
 {
    printk("\n\t:: SDK is Disconnected From IoTConnect ::");
    int sd = mqtt_disconnect(&client);  Flag_99 = false;  k_msleep(100);
@@ -1238,7 +1238,7 @@ int UpdateTwin(char *key,char *value)
 /*************************************************
     This will UpdateTwin property to IoTConnect
 *************************************************/
-void updateTwin_int(char *key, int value){
+void UpdateTwin_Int(char *key, int value){
     char *Twin_Json_Data;
     cJSON *root;
     root  = cJSON_CreateObject();
@@ -1318,7 +1318,7 @@ int SendAck(char *Ack_Data, int messageType)
         printk("\nUnable to allocate Ack_Json2 Object in SendAck");
         return -1;    
     }
-    
+
     cJSON_AddStringToObject(Ack_Json2, "uniqueId",uniqueID);
     cJSON_AddStringToObject(Ack_Json2, "cpId",CPID);
     cJSON_AddStringToObject(Ack_Json2, "t",Get_Time());
