@@ -3,6 +3,8 @@
 
 #include "../IoTConnect/src/IoTConnectSDK.h"
 char *Attribute_json_Data = " ";
+
+
 char *Sensor_data(void);
 
 
