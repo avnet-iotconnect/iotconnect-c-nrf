@@ -1,9 +1,0 @@
-{
-    "nrf-connect.toolchain.path": "${nrf-connect.toolchain:2.4.0}",
-    "files.associations": {
-        "mqtt.h": "c",
-        "iotconnectsdk.h": "c",
-        "main.h": "c",
-        "certificates.h": "c"
-    }
-}

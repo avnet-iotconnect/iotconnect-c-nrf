@@ -486,7 +486,7 @@ int fds_init(struct mqtt_client *c)
 /**********************************************
         MQTT will work in while loop
 ***********************************************/
-int MQTT_looP(void)
+int MQTT_Status(void)
 {
 
     int err = 0;
@@ -640,7 +640,7 @@ int IoTConnect_connect()
     }
     k_msleep(100);
 
-    return MQTT_looP();
+    return MQTT_Status();
 }
 
 
@@ -1232,6 +1232,26 @@ int UpdateTwin(char *key,char *value)
     free(Twin_Json_Data);
 
     return 0;
+}
+
+
+/*************************************************
+    This will UpdateTwin property to IoTConnect
+*************************************************/
+void updateTwin_int(char *key, int value){
+    char *Twin_Json_Data;
+    cJSON *root;
+    root  = cJSON_CreateObject();
+
+    cJSON_AddNumberToObject(root, key, value);
+    Twin_Json_Data = cJSON_PrintUnformatted(root);
+ 
+    if ( ! data_publish(&client, twinPropertyPubTopic, 0, Twin_Json_Data, strlen(Twin_Json_Data))){
+        printf("\n\t Twin_Update_Data Publish ");
+        }
+
+    cJSON_Delete(root);
+    free(Twin_Json_Data);
 }
 
 

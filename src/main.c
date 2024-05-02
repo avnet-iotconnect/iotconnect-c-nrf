@@ -125,7 +125,7 @@ void main(void)
     while(count < 1000)
     {
 
-        if(MQTT_looP() == 0)
+        if(MQTT_Status() == 0)
         {
             // all sensors data will be formed in JSON format and will be publied by SendData() function 
             Attribute_json_Data = Sensor_data();
@@ -207,7 +207,7 @@ void Twin_CallBack(char *topic, char *payload)
                     if (diff <= 0)
                     {
                         printk("int value: %d\n", (cJSON_GetObjectItem(D, key))->valueint);
-                        UpdateTwin(key, int_val);
+                        updateTwin_int(key, int_val);
                     }
                 }
                 if (device_type == 16)
