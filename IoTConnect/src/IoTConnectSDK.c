@@ -463,6 +463,9 @@ void client_init(struct mqtt_client *client)
         tls_config->sec_tag_count = ARRAY_SIZE(sec_tag_list);
         tls_config->sec_tag_list = sec_tag_list;
         tls_config->hostname = SYNC_resp.Broker.host;
+    #else
+        client->transport.type = MQTT_TRANSPORT_NON_SECURE;
+    #endif
 }
 
 int fds_init(struct mqtt_client *c)
@@ -474,7 +477,10 @@ int fds_init(struct mqtt_client *c)
     else 
     {
         #if defined(CONFIG_MQTT_LIB_TLS)
-                fds.fd = c->transport.tls.sock;
+            fds.fd = c->transport.tls.sock;
+        #else
+                return -ENOTSUP;
+        #endif
 	}
 
 	fds.events = POLLIN;
@@ -1146,20 +1152,20 @@ int SendData(char *Attribute_json_Data)
                 else
                 {
                     printk("\r\n\tERR_SD01 [%s %s] : Publish data failed err %d: MQTT connection not found\n", CPID, uniqueID, errPub);
-                    return 1;
+                    return -1;
                 }
 
-                return 1;
+                return -1;
 
             }
         }
-        return 1;
+        return -1;
     }
     
     else
     {
         printk("\r\n\tINFO_DC01 [%s-%s] : Device already disconnected",CPID,uniqueID);
-        return 1;
+        return -1;
     }
     return 0;
 }
@@ -1238,7 +1244,7 @@ int UpdateTwin(char *key,char *value)
 /*************************************************
     This will UpdateTwin property to IoTConnect
 *************************************************/
-void UpdateTwin_Int(char *key, int value){
+int UpdateTwin_Int(char *key, int value){
     char *Twin_Json_Data;
     cJSON *root;
     root  = cJSON_CreateObject();
