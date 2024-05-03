@@ -106,6 +106,7 @@ void Device_CallBack(char *topic, char *payload) {
     int Status = 0,mt=0;
     char *cmd_ackID, *Cmd_value, *Ack_Json_Data;
     printk("\n Cmd_msg >>  %s",payload);   
+}
 	
 ```
 

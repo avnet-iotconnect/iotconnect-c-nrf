@@ -1,0 +1,30 @@
+Update in Functions of main.c
+
+1 -> IoTConnect_Init() 
+    It gives 0 on success and -1 on fail. This function connect our SDK with IOTConnect portal. 
+	If this function fails then SDK doesn't have MQTT connection details and MQTT will not connect.
+
+2 -> IoTConnect_Connect() 
+    It gives 0 on success and -1 on fail. This function connect MQTT client. 
+	If there is problem with internet connectivity or MQTT will disconnect in device then need to reinit this function.
+
+3 -> MQTT_Status() 
+    It gives 0 on success and -1 on fail. This function need to call in loop to check MQTT connection is connected or disconnected. 
+	This function needs to be called to check MQTT before sending data or updating twin or sending acknowledgement.
+
+4 -> SendData() 
+    It gives 0 on success and -1 on fail. This function publish the MQTT data to IOTConnect Portal.
+
+5 -> IoTConnect_Abort() 
+    This function abort connection of MQTT client with IOTConnect Portal.
+
+6 -> UpdateTwin_Int() 
+    It gives 0 on success and -1 on fail. This function is update Integer Twin Property to IOTConnect Portal.
+
+7 -> UpdateTwin_Str() 
+    It gives 0 on success and -1 on fail. This function is update String Twin Property to IOTConnect Portal.
+
+8 -> SendAck() 
+    It gives 0 on success and -1 on fail. This function will send the acknowledgement of receiving Commands from IOTConnect Portal.
+
+
