@@ -1214,9 +1214,9 @@ int GetTimeDiff(char newT[25], char oldT[25])
 
 
 /*************************************************
-    This will UpdateTwin property to IoTConnect
+    This will UpdateTwin String property to IoTConnect
 *************************************************/
-int UpdateTwin(char *key,char *value)
+int UpdateTwin_Str(char *key,char *value)
 {
     char *Twin_Json_Data;
     cJSON *root = cJSON_CreateObject();
@@ -1242,7 +1242,7 @@ int UpdateTwin(char *key,char *value)
 
 
 /*************************************************
-    This will UpdateTwin property to IoTConnect
+    This will UpdateTwin Integer property to IoTConnect
 *************************************************/
 int UpdateTwin_Int(char *key, int value){
     char *Twin_Json_Data;

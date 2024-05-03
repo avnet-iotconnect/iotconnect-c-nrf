@@ -49,7 +49,7 @@ int MQTT_Status(void);
 int SendData(char *Attribute_json_Data);
 int IoTConnect_Abort();
 int UpdateTwin_Int(char *key, int value);
-int UpdateTwin(char *key,char *value);
+int UpdateTwin_Str(char *key,char *value);
 int SendAck(char *Ack_Data, int messageType);
 
 #endif /* IOTCONNECTSDK_H */

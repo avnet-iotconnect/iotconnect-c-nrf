@@ -214,7 +214,7 @@ void Twin_CallBack(char *topic, char *payload)
                 {
                     value = (cJSON_GetObjectItem(D, key))->valuestring;
                     printk("string value: %s\n", value);
-                    UpdateTwin(key,value);
+                    UpdateTwin_Str(key,value);
                 }
                 if (device_type == 4 || device_type == 64)
                 {
