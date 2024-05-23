@@ -65,6 +65,6 @@ config MQTT_PAYLOAD_BUFFER_SIZE
 endmenu
 
 menu "Zephyr Kernel"
-#source "$ZEPHYR_BASE/Kconfig.zephyr"
-source "Kconfig.zephyr"
+source "$ZEPHYR_BASE/Kconfig.zephyr"
+# source "Kconfig.zephyr"
 endmenu

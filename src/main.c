@@ -58,7 +58,7 @@ void main(void)
     if (err == 0) 
     {
         printk("LTE initialization and connection successful\n");
-    } 
+    }
     else 
     {
         printk("LTE initialization and connection failed with error code: %d\n", err);
@@ -146,8 +146,8 @@ void main(void)
         {
             printk("MQTT Connection Failed\n");
             //TODO: Break the loop, wait for internet connectivity, start form reinit goto handler
-            printk("Waiting for 5 sec\n Trying to reinit IotConnect MQTT Connection\n");
-            k_msleep(5000);
+            printk("Waiting for 15 sec\n Trying to reinit IotConnect MQTT Connection\n");
+            k_msleep(15000);
             goto reinit;
         }
 

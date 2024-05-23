@@ -1154,14 +1154,9 @@ int SendData(char *Attribute_json_Data)
                     printk("\r\n\tERR_SD01 [%s %s] : Publish data failed err %d: MQTT connection not found\n", CPID, uniqueID, errPub);
                     return -1;
                 }
-
-                return -1;
-
             }
         }
-        return -1;
     }
-    
     else
     {
         printk("\r\n\tINFO_DC01 [%s-%s] : Device already disconnected",CPID,uniqueID);
