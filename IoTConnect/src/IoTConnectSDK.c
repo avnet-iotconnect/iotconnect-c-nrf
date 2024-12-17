@@ -590,8 +590,8 @@ void MQTT_Init()
         
     client.broker = SYNC_resp_new.Broker.host;
     client.client_id.utf8 = SYNC_resp_new.Broker.Id;
-    client.user_name->utf8 = SYNC_resp_new.Broker.username;
-    client.user_name->size = strlen(SYNC_resp_new.Broker.username);
+    client.user_name = SYNC_resp_new.Broker.username;
+    // client.user_name->size = strlen(SYNC_resp_new.Broker.username);
             
     client_init(&client);
 
