@@ -830,7 +830,7 @@ char* get_base_url(char*Host, char *cpid, char *env)
 
     if (Base_URL != NULL)
     {
-        strcat(Base_URL,"sync");
+        // strcat(Base_URL,"sync");
         return Base_URL;
     }
     else
