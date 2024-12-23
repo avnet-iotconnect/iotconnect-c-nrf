@@ -2,9 +2,9 @@
 #define IOTCONNECT_CONFIG_H
 
 /* IoTConnect credential configuration */
-#define  IOTCONNECT_DEVICE_CP_ID        "yourCpid"
-#define  IOTCONNECT_DEVICE_UNIQUE_ID    "yourUniqueID"
-#define  IOTCONNECT_DEVICE_ENV          "IoTConnectENV"
+#define  IOTCONNECT_DEVICE_CP_ID        ""
+#define  IOTCONNECT_DEVICE_UNIQUE_ID    ""
+#define  IOTCONNECT_DEVICE_ENV          ""
 
 /* IoTConnect server port configuration */
 #endif /* IOTCONNECT_CONFIG_H */
