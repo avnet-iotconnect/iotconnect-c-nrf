@@ -1,7 +1,7 @@
 /********************************************************************************************
   SDK for IoTConnect
   
-  This IoTConnect SDK will help you to update your Sensors data on IoTConnect cloud(AWS)
+  This IoTConnect SDK will help you to update your Sensors data on IoTConnect cloud(AWS, AZ)
   In this example file Humidity, Temperature and Gyroscope(x,y,z) random data published on our cloud at real time
 
   For run this example you have to include/import "IoTConnect.cpp" or "IoTConnect.h"
@@ -124,7 +124,7 @@ void main(void)
         if(MQTT_Status() == 0)
         {
             // all sensors data will be formed in JSON format and will be publied by SendData() function 
-            Attribute_json_Data = Sensor_data();
+            char * attributeData = Sensor_data();
 
             /********************************************************************************************
             Type    : Public Method "sendData()"
@@ -132,9 +132,9 @@ void main(void)
             Output  : 
             Input   : Predefined data object 
             ********************************************************************************************/
-            if(SendData(Attribute_json_Data) != 0)
+            if(SendData(attributeData) != 0)
             {
-                printk("FIRMWARE : Error : Attribute_json_Data Send Data\n");
+                printk("FIRMWARE : Error : attributeData Send Data\n");
             }
         }
         else
@@ -175,7 +175,7 @@ Input   :
 void Twin_CallBack(char *topic, char *payload)
 {      
     char *key = NULL, *value = NULL;
-    int device_type;
+    int deviceType;
     printk("FIRMWARE : Twin/Shadow Callback\r\n");
     printk("FIRMWARE : Twin/Shadow Topic: %s\r\n", topic);
     printk("FIRMWARE : Twin/Shadow Payload: %s\r\n", payload);
@@ -192,8 +192,8 @@ void Twin_CallBack(char *topic, char *payload)
             else 
             {
                 key = device->string;
-                device_type = device->type;
-                if(device_type == 8)
+                deviceType = device->type;
+                if(deviceType == 8)
                 { 
                     int  int_val;
                     double diff, flot_val;
@@ -207,13 +207,13 @@ void Twin_CallBack(char *topic, char *payload)
                         UpdateTwin_Int(key, int_val);
                     }
                 }
-                if (device_type == 16)
+                if (deviceType == 16)
                 {
                     value = (cJSON_GetObjectItem(D, key))->valuestring;
                     printk("FIRMWARE : string value: %s\n", value);
                     UpdateTwin_Str(key,value);
                 }
-                if (device_type == 4 || device_type == 64)
+                if (deviceType == 4 || deviceType == 64)
                 {
                     printk("FIRMWARE : Removed twin %s has value NULL\n", key);
                 }
@@ -235,10 +235,10 @@ void Device_CallBack(char *topic, char *payload)
     printk("FIRMWARE : Device Callback\r\n");
     printk("FIRMWARE : Topic: %s\r\n", topic);
     
-    cJSON *Ack_Json, *sub_value, *in_url;
+    cJSON *ackJson, *sub_value, *in_url;
     int Status = 0,msgType=0;
     char *cmd_ackID = NULL;
-    char *Ack_Json_Data = NULL;
+    char *ackJsonData = NULL;
 
     cJSON *root = cJSON_Parse(payload);
 
@@ -275,18 +275,18 @@ void Device_CallBack(char *topic, char *payload)
         }
     }
 
-    Ack_Json = cJSON_CreateObject();
-    if (Ack_Json == NULL)
+    ackJson = cJSON_CreateObject();
+    if (ackJson == NULL)
 	{
-        printk("FIRMWARE : Unable to allocate Ack_Json Object in Device_CallBack\n");
+        printk("FIRMWARE : Unable to allocate ackJson Object in Device_CallBack\n");
         return ;    
     }
-    cJSON_AddStringToObject(Ack_Json, "ack",cmd_ackID);
-    cJSON_AddNumberToObject(Ack_Json, "type", msgType);
-    cJSON_AddNumberToObject(Ack_Json, "st", Status);
-    cJSON_AddStringToObject(Ack_Json, "msg","Not Implemented");
+    cJSON_AddStringToObject(ackJson, "ack",cmd_ackID);
+    cJSON_AddNumberToObject(ackJson, "type", msgType);
+    cJSON_AddNumberToObject(ackJson, "st", Status);
+    cJSON_AddStringToObject(ackJson, "msg","Not Implemented");
 
-    Ack_Json_Data = cJSON_PrintUnformatted(Ack_Json);
+    ackJsonData = cJSON_PrintUnformatted(ackJson);
 
     /*
     Type    : Public Method "sendAck()"
@@ -302,7 +302,7 @@ void Device_CallBack(char *topic, char *payload)
         msgType = 2; // for Module command
     */ 
 
-    if(!SendAck(Ack_Json_Data, msgType))
+    if(!SendAck(ackJsonData, msgType))
     {
         printk("FIRMWARE : Send Command ACK Success\n");
     }else{
@@ -315,31 +315,31 @@ void Device_CallBack(char *topic, char *payload)
 char *Sensor_data(void)
 {
 
-    cJSON *Attribute_json = NULL;
-    cJSON *Device_data1 = NULL;
-    cJSON *Data = NULL;
-    cJSON *Data1 = NULL;
+    cJSON *attributeJson = NULL;
+    cJSON *deviceData = NULL;
+    cJSON *deviceJson = NULL;
+    cJSON *gyrData = NULL;
 
-    Attribute_json = cJSON_CreateArray();
-    if (Attribute_json == NULL)
+    attributeJson = cJSON_CreateArray();
+    if (attributeJson == NULL)
     {
-        printk("FIRMWARE : Unable to allocate Attribute_json Object\n");
+        printk("FIRMWARE : Unable to allocate attributeJson Object\n");
         return NULL;    
     }
 
-    cJSON_AddItemToArray(Attribute_json, Device_data1 = cJSON_CreateObject());
-    cJSON_AddStringToObject(Device_data1, "uniqueId",IOTCONNECT_DEVICE_UNIQUE_ID);
-    cJSON_AddStringToObject(Device_data1, "time", Get_Time());
-    cJSON_AddItemToObject(Device_data1, "data", Data = cJSON_CreateObject());
-    cJSON_AddNumberToObject(Data,"Humidity",30);
-    cJSON_AddNumberToObject(Data, "Temperature",18);
-    cJSON_AddItemToObject(Data, "Gyroscope", Data1 = cJSON_CreateObject());
-    cJSON_AddNumberToObject(Data1,"X",128);
-    cJSON_AddNumberToObject(Data1,"Y",148);
-    cJSON_AddNumberToObject(Data1,"Z",318);
-    cJSON_AddNumberToObject(Data, "Temperature",64);
+    cJSON_AddItemToArray(attributeJson, deviceData = cJSON_CreateObject());
+    cJSON_AddStringToObject(deviceData, "uniqueId",IOTCONNECT_DEVICE_UNIQUE_ID);
+    cJSON_AddStringToObject(deviceData, "time", Get_Time());
+    cJSON_AddItemToObject(deviceData, "data", deviceJson = cJSON_CreateObject());
+    cJSON_AddNumberToObject(deviceJson,"Humidity",30);
+    cJSON_AddNumberToObject(deviceJson, "Temperature",18);
+    cJSON_AddItemToObject(deviceJson, "Gyroscope", gyrData = cJSON_CreateObject());
+    cJSON_AddNumberToObject(gyrData,"X",128);
+    cJSON_AddNumberToObject(gyrData,"Y",148);
+    cJSON_AddNumberToObject(gyrData,"Z",318);
+    cJSON_AddNumberToObject(deviceJson, "Temperature",64);
     
-    char *msg = cJSON_PrintUnformatted(Attribute_json);
-    cJSON_Delete(Attribute_json);
+    char *msg = cJSON_PrintUnformatted(attributeJson);
+    cJSON_Delete(attributeJson);
     return  msg;
 }
