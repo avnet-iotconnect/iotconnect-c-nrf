@@ -4,15 +4,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <zephyr/net/socket.h>
-//#include <net/bsdlib.h>
 #include <zephyr/net/tls_credentials.h>
 #include "cJSON.h"
 #include <modem/lte_lc.h>
 #include <modem/pdn.h>
 #include <date_time.h>
 
-//#include <at_cmd.h>
-//#include <at_notif.h>
 #include <zephyr/logging/log.h> 
 #include <modem/modem_key_mgmt.h>
 #include <zephyr/net/mqtt.h>
@@ -27,7 +24,6 @@ static struct mqtt_client client;
 static struct sockaddr_storage broker;
 static bool connected;
 static struct pollfd fds;
-// struct Sync_Resp SYNC_resp;
 uint16_t mid_num = 0;
 
 
@@ -50,7 +46,7 @@ typedef struct
     char *dtg;
     char *dvc_id[10];
     char *tg[10];
-    int rc;             //root..info
+    int rc;
     int ee;
     int at;
     int ec;
@@ -116,18 +112,9 @@ char *ENVT =NULL, *uniqueID =NULL;
 char *Sync_call_resp;
 char *Base_url;
 //char *Dpayload = " ", *Tpayload =NULL;
-static bool pubAck;
+// static bool pubAck;
 bool Flag_99 = true;
 char LastTime[25] = "1970-01-01T00:00:00.000Z";
-//char* const Discovery = "discovery.iotconnect.io";
-char* const httpAPIVersion = "2016-02-03";
-
-char* const  twinPropertyPubTopic ="$iothub/twin/PATCH/properties/reported/?$rid=1";
-char* const  twinPropertySubTopic ="$iothub/twin/PATCH/properties/desired/#";
-char* const  twinResponsePubTopic ="$iothub/twin/GET/?$rid=0";
-char* const  twinResponseSubTopic ="$iothub/twin/res/#";
-
-
 
 #if defined(CONFIG_PROVISION_CERTIFICATES)
 #define MAX_OF_2 MAX(sizeof(CLOUD_CA_CERTIFICATE),\
@@ -201,7 +188,6 @@ char *Get_Time(void)
 int data_publish(struct mqtt_client *c, char *topic, enum mqtt_qos qos,
 	uint8_t *data, size_t len)
 {
-    // printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
 	struct mqtt_publish_param param;
 
 	param.message.topic.qos = qos;
@@ -213,8 +199,6 @@ int data_publish(struct mqtt_client *c, char *topic, enum mqtt_qos qos,
 	param.dup_flag = 0;
 	param.retain_flag = 0;
 
-    printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
-
 	return mqtt_publish(c, &param);
 }
 
@@ -224,7 +208,6 @@ int data_publish(struct mqtt_client *c, char *topic, enum mqtt_qos qos,
 *****************************************************/
 int subscribe(void)
 {
-    // printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
 	struct mqtt_topic subscribe_topic[3] = {
 		{.topic = {
 			.utf8 = SYNC_resp_new.Broker.subTopic,
@@ -256,13 +239,13 @@ int subscribe(void)
 
     err = mqtt_subscribe(&client, &subscription_list);
 
-    //publish 201 to get attr if att == 1
-    if(SYNC_resp_new.has.attr == 1)
-    {
-        printk("Sending 201 Command for GET Attribute\r\n");
-        char *get_json = "{\"mt\":201}";
-        data_publish(&client, SYNC_resp_new.Broker.di, 1, get_json, strlen(get_json));
-    }
+    // //publish 201 to get attr if att == 1
+    // if(SYNC_resp_new.has.attr == 1)
+    // {
+    //     printk("Sending 201 Command for GET Attribute\r\n");
+    //     char *get_json = "{\"mt\":201}";
+    //     data_publish(&client, SYNC_resp_new.Broker.di, 1, get_json, strlen(get_json));
+    // }
 
 
 	return err;
@@ -274,7 +257,6 @@ int subscribe(void)
 ***********************************************/
 int publish_get_payload(struct mqtt_client *c, size_t length)
 {
-    // printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
 	uint8_t *buf = payload_buf;
 	uint8_t *end = buf + length;
 
@@ -295,8 +277,6 @@ int publish_get_payload(struct mqtt_client *c, size_t length)
             {
 				return ret;
 			}
-
-			printk("mqtt_read_publish_payload: EAGAIN\n");
 
             err = poll(&fds, 1, 30);
 			if (err > 0 && (fds.revents & POLLIN) == POLLIN) 
@@ -326,28 +306,26 @@ int publish_get_payload(struct mqtt_client *c, size_t length)
 ***********************************************/
 void mqtt_evt_handler(struct mqtt_client *const c, const struct mqtt_evt *evt)
 {
-    // printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
 	int err;
 	switch (evt->type) 
     {
         case MQTT_EVT_CONNACK:
             if (evt->result != 0) {
-                printk("MQTT connect failed %d\n", evt->result);
+                printk("INFO_SDK [%s-%d] : MQTT connect failed %d\n", __func__, __LINE__, evt->result);
                 break;
             }
 
             connected = true;
-            printk("[%s:%d] MQTT client connected!\n", __func__, __LINE__);
+            printk("INFO_SDK [%s-%d] : MQTT client connected!\n", __func__, __LINE__);
             subscribe();
             break;
 
         case MQTT_EVT_DISCONNECT:
-            printk("[%s:%d] MQTT client disconnected %d\n", __func__,
-                __LINE__, evt->result);
+            printk("INFO_SDK [%s-%d] : MQTT client disconnected %d\n", __func__, __LINE__, evt->result);
 
             err = mqtt_disconnect(c);
             if (err) {
-                printk("Could not disconnect: %d\n", err);
+                printk("ERR_SDK [%s-%d] : Could not disconnect: %d\n", __func__, __LINE__, err);
             }
 
             connected = false;
@@ -358,7 +336,7 @@ void mqtt_evt_handler(struct mqtt_client *const c, const struct mqtt_evt *evt)
             memset(&pubpara, 0, sizeof(pubpara));
             pubpara = &evt->param.publish;
                     
-            printk("[%s:%d] MQTT PUBLISH result=%d len=%d\n", __func__,
+            printk("INFO_SDK [%s:%d] : MQTT PUBLISH result=%d len=%d\n", __func__,
                 __LINE__, evt->result, pubpara->message.payload.len);
             err = publish_get_payload(c, pubpara->message.payload.len);
 
@@ -374,19 +352,17 @@ void mqtt_evt_handler(struct mqtt_client *const c, const struct mqtt_evt *evt)
 
             if (err >= 0)
             {
-                data_print("Received: ", payload_buf, pubpara->message.topic.topic.utf8,
-                    pubpara->message.payload.len);
-
+                data_print("Received: ", payload_buf, pubpara->message.topic.topic.utf8, pubpara->message.payload.len);
             } 
             else 
             {
-                printk("mqtt_read_publish_payload: Failed! %d\n", err);
-                printk("Disconnecting MQTT client...\n");
+                printk("ERR_SDK [%s-%d] : mqtt_read_publish_payload: Failed! %d\n", __func__, __LINE__, err);
+                printk("ERR_SDK [%s-%d] : Disconnecting MQTT client...\n", __func__, __LINE__);
 
                 err = mqtt_disconnect(c);
                 if (err) 
                 {
-                    printk("Could not disconnect: %d\n", err);
+                    printk("ERR_SDK [%s-%d] : Could not disconnect: %d\n", __func__, __LINE__, err);
                 }
             }
             
@@ -395,23 +371,23 @@ void mqtt_evt_handler(struct mqtt_client *const c, const struct mqtt_evt *evt)
         case MQTT_EVT_PUBACK:
             if (evt->result != 0) 
             {
-                printk("MQTT PUBACK error %d\n", evt->result);
+                printk("ERR_SDK [%s-%d] : MQTT PUBACK error %d\n", __func__, __LINE__, evt->result);
                 break;
             }
-            printk("[%s:%d] PUBACK packet id: %u\n", __func__, __LINE__, evt->param.puback.message_id);
+            printk("INFO_SDK [%s-%d] : PUBACK packet id: %u\n", __func__, __LINE__, evt->param.puback.message_id);
             break;
 
         case MQTT_EVT_SUBACK:
             if (evt->result != 0) 
             {
-                printk("MQTT SUBACK error %d\n", evt->result);
+                printk("ERR_SDK [%s-%d] : MQTT SUBACK error %d\n", __func__, __LINE__, evt->result);
                 break;
             }
-            printk("[%s:%d] SUBACK packet id: %u\n", __func__, __LINE__, evt->param.suback.message_id);
+            printk("INFO_SDK [%s-%d] : SUBACK packet id: %u\n", __func__, __LINE__, evt->param.suback.message_id);
             break;
 
         default:
-            printk("[%s:%d] default: %d\n", __func__, __LINE__,	evt->type);
+            printk("INFO_SDK [%s-%d] : default: %d\n", __func__, __LINE__, evt->type);
             break;
 	}
 }
@@ -421,7 +397,6 @@ void mqtt_evt_handler(struct mqtt_client *const c, const struct mqtt_evt *evt)
 ***********************************************/
 void broker_init(void)
 {
-    // printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
 	int err;
 	struct addrinfo *result;
 	struct addrinfo *addr;
@@ -434,8 +409,7 @@ void broker_init(void)
 	err = getaddrinfo(SYNC_resp_new.Broker.host, NULL, &hints, &result);
 	
 	if (err) {
-		printk("ERROR: getaddrinfo failed %d\n", err);
-
+        printk("ERR_SDK [%s-%d] : getaddrinfo failed %d\n", __func__, __LINE__, err);
 		return;
 	}
 
@@ -457,11 +431,12 @@ void broker_init(void)
 
 			inet_ntop(AF_INET, &broker4->sin_addr.s_addr,
 				  ipv4_addr, sizeof(ipv4_addr));
-			printk("\nIPv4 Address found %s\n", ipv4_addr);
+            printk("INFO_SDK [%s-%d] : IPv4 Address found %s\n", __func__, __LINE__, ipv4_addr);
 
 			break;
 		} else {
-			printk("ai_addrlen = %u should be %u or %u\n",
+			printk("INFO_SDK [%s-%d] : ai_addrlen = %u should be %u or %u\n",
+                __func__, __LINE__,
 				(unsigned int)addr->ai_addrlen,
 				(unsigned int)sizeof(struct sockaddr_in),
 				(unsigned int)sizeof(struct sockaddr_in6));
@@ -487,7 +462,6 @@ struct mqtt_utf8 mqtt_password;
 
 void client_init(struct mqtt_client *client)
 {
-    // printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
 	mqtt_client_init(client);
 
 	broker_init();
@@ -549,7 +523,6 @@ void client_init(struct mqtt_client *client)
 
 int fds_init(struct mqtt_client *c)
 {
-    // printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
 	if (c->transport.type == MQTT_TRANSPORT_NON_SECURE) 
     {
 		fds.fd = c->transport.tcp.sock;
@@ -574,22 +547,20 @@ int fds_init(struct mqtt_client *c)
 ***********************************************/
 int MQTT_Status(void)
 {
-    // printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
-
     int err = 0;
 
     err = poll(&fds, 1, mqtt_keepalive_time_left(&client));
     if (err < 0)
     {
-        printk("ERROR: poll %d\n", errno);
-        return -1;
+        printk("ERR_SDK [%s-%d] : ERROR: poll %d\n", __func__, __LINE__, err);
+        return 1;
 	}
 
     err = mqtt_live(&client);
     if ((err != 0) && (err != -EAGAIN)) 
     {
-        printk("ERROR: mqtt_live %d\n", err);
-        return -1;
+        printk("ERR_SDK [%s-%d] : ERROR: mqtt_live %d\n", __func__, __LINE__, err);
+        return 1;
 	}
 
     if ((fds.revents & POLLIN) == POLLIN) 
@@ -597,27 +568,27 @@ int MQTT_Status(void)
         err = mqtt_input(&client);
 	    if (err != 0) 
         {
-            printk("ERROR: mqtt_input %d\n", err);
-            return -1;
+            printk("ERR_SDK [%s-%d] : ERROR: mqtt_input %d\n", __func__, __LINE__, err);
+            return 1;
 		}
 	}
     
     if ((fds.revents & POLLERR) == POLLERR)
     {
-        printk("Socket Error : POLLERR\n");
-        return -1;
+        printk("ERR_SDK [%s-%d] : Socket Error : POLLERR\n", __func__, __LINE__);
+        return 1;
 	}
 
     if ((fds.revents & POLLHUP ) == POLLHUP ) 
     {
-        printk("Socket Error : POLLHUP \n");
-        return -1;
+        printk("ERR_SDK [%s-%d] : Socket Error : POLLHUP\n", __func__, __LINE__);
+        return 1;
 	}
     
     if ((fds.revents & POLLNVAL) == POLLNVAL) 
     {
-        printk("Socket Error : POLLNVAL\n");
-        return -1;
+        printk("ERR_SDK [%s-%d] : Socket Error : POLLNVAL\n", __func__, __LINE__);
+        return 1;
 	}
     
     return 0;
@@ -629,18 +600,16 @@ int MQTT_Status(void)
 ***********************************************/
 int MQTT_Init()
 {
-    // printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
 	int err;
         
     client.broker = SYNC_resp_new.Broker.host;
     client.client_id.utf8 = SYNC_resp_new.Broker.Id;
     client.user_name = SYNC_resp_new.Broker.username;
-    // client.keepalive = 6000;
 
     if(&client == NULL)
     {
-        printk("MQTT Client NULL\n");
-        return -1;
+        printk("ERR_SDK [%s-%d] : MQTT Client NULL\n", __func__, __LINE__);
+        return 1;
     }
             
     client_init(&client);
@@ -648,19 +617,17 @@ int MQTT_Init()
 	err = mqtt_connect(&client);
 	if (err != 0)
     {
-		printk("ERROR: mqtt_connect %d\n", err);
-		return -1;
+        printk("ERR_SDK [%s-%d] : mqtt_connect : Fail %d\n", __func__, __LINE__, err);
+		return 1;
 	}
 
 
 	err = fds_init(&client);
 	if (err != 0)
     {
-		printk("ERROR: fds_init %d\n", err);
-		return -1;
+        printk("ERR_SDK [%s-%d] : fds_init : Error %d\n", __func__, __LINE__, err);
+		return 1;
 	}
-
-    
 
     return 0;
 }
@@ -675,7 +642,13 @@ int IoTConnect_Init(char *cpID, char *UniqueID, char *Env,IOTConnectCallback Cal
     int res;
     char *sync_resp;
 
-    printk("Start IoTConnect_Init\n");
+    printk("INFO_SDK [%s-%d] : Start IoTConnect_Init\n", __func__, __LINE__);
+
+    if((strlen(cpID) == 0)||(strlen(UniqueID) == 0)||(strlen(Env) == 0))
+    {
+        printk("ERR_SDK [%s-%d] : CPID | Unique ID | ENV can not be blank\n", __func__, __LINE__);
+        return 1;
+    }
     
     if(Flag_99)
     {
@@ -683,16 +656,16 @@ int IoTConnect_Init(char *cpID, char *UniqueID, char *Env,IOTConnectCallback Cal
         Base_url = get_base_url(HTTPS_HOSTNAME,cpID,Env);
         if (Base_url == NULL)
         {
-            printk("Base_url is NULL");
-            return -1;
+            printk("ERR_SDK [%s-%d] : Base_url is NULL\n", __func__, __LINE__);
+            return 1;
         }
             
         k_msleep(200);
         sync_resp = Sync_call(cpID, UniqueID, Base_url);
         if (sync_resp == NULL)
         {
-            printk("[error] sync_resp");
-            return -1;
+            printk("ERR_SDK [%s-%d] : sync_resp\n", __func__, __LINE__); 
+            return 1;
         }
         
         ENVT = Env;
@@ -708,10 +681,11 @@ int IoTConnect_Init(char *cpID, char *UniqueID, char *Env,IOTConnectCallback Cal
         }      
         else
         {
-            return -1;
+            return 1;
         }                     
 
     }
+    return 1;
 }
 
 
@@ -720,21 +694,16 @@ int IoTConnect_Init(char *cpID, char *UniqueID, char *Env,IOTConnectCallback Cal
 ***********************************************/
 int IoTConnect_Connect()
 {
-    // printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
     if(MQTT_Init() == 0)
     {
-        printk("MQTT_Init SUCCESS\n");
+        printk("INFO_SDK [%s-%d] : MQTT_Init : Success\n", __func__, __LINE__);
     }
     else
     {
-        printk("MQTT_Init FAIL\n");
-        return -1;
+        printk("ERR_SDK [%s-%d] : MQTT_Init : Fail\n", __func__, __LINE__);
+        return 1;
     }
     k_msleep(100);
-
-    // k_msleep(1000);
-    // subscribe();
-    // k_msleep(1000);
 
 
     // //publish 201 to get attr if att == 1
@@ -799,7 +768,7 @@ int tls_setup(int fd)
 	err = setsockopt(fd, SOL_TLS, TLS_PEER_VERIFY, &verify, sizeof(verify));
 	if (err) 
     {
-		printk("Failed to setup peer verification, err %d\n", errno);
+        printk("ERR_SDK [%s-%d] : Failed to setup peer verification, err %d\n", __func__, __LINE__, errno);
 		return err;
 	}
 
@@ -807,7 +776,7 @@ int tls_setup(int fd)
 			 sizeof(tls_sec_tag));
 	if (err) 
     {
-		printk("Failed to setup TLS sec tag, err %d\n", errno);
+        printk("ERR_SDK [%s-%d] : Failed to setup TLS sec tag, err %d\n", __func__, __LINE__, errno);
 		return err;
 	}
 
@@ -823,6 +792,7 @@ int tls_setup(int fd)
 	"Host: %s\r\n"                                              \
 	"Content-Type: application/json; charset=utf-8\r\n"         \
     "Connection: close\r\n\r\n"
+
 char* get_base_url(char*Host, char *cpid, char *env)
 {
     int err, fd, bytes;
@@ -836,24 +806,24 @@ char* get_base_url(char*Host, char *cpid, char *env)
     char *Base_URL = NULL;
     char peer_addr[INET6_ADDRSTRLEN];
 
-    printk("Get URL address ...\n");
+    printk("INFO_SDK [%s-%d] : Get URL address ...\n", __func__, __LINE__);
 
     err = getaddrinfo(HTTPS_HOSTNAME, HTTPS_PORT, &IoT_hints, &IoT_res);
 	if (err) 
     {
-		printk("getaddrinfo() failed, err %d\n", errno);
+        printk("ERR_SDK [%s-%d] : getaddrinfo() failed, err %d\n", __func__, __LINE__, errno);
 		return NULL;
 	} 
    
     inet_ntop(IoT_res->ai_family, &((struct sockaddr_in *)(IoT_res->ai_addr))->sin_addr, peer_addr,
 			INET6_ADDRSTRLEN);
-	printk("Resolved %s (%s)\n", peer_addr, net_family2str(IoT_res->ai_family));
+    printk("INFO_SDK [%s-%d] : Resolved %s (%s)\n", __func__, __LINE__, peer_addr, net_family2str(IoT_res->ai_family));
 
 
     fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TLS_1_2);
     if (fd == -1) 
     {
-        printk("Failed to open socket!\n");
+        printk("ERR_SDK [%s-%d] : Failed to open socket!\n", __func__, __LINE__);
         goto clean_up;
     }
     err = tls_setup(fd);
@@ -862,14 +832,14 @@ char* get_base_url(char*Host, char *cpid, char *env)
         goto clean_up;
     }
 
-    printk("Connecting to %s:%d\n", HTTPS_HOSTNAME,	ntohs(((struct sockaddr_in *)(IoT_res->ai_addr))->sin_port));
+    printk("INFO_SDK [%s-%d] : Connecting to %s:%d\n\n", __func__, __LINE__, HTTPS_HOSTNAME, ntohs(((struct sockaddr_in *)(IoT_res->ai_addr))->sin_port));
     err = connect(fd, IoT_res->ai_addr, IoT_res->ai_addrlen);
     if (err) 
     {
-        printk("connect() failed, err: %d\n", errno);
+        printk("ERR_SDK [%s-%d] : connect() failed, err %d\n", __func__, __LINE__, errno);
         goto clean_up;
     }
-    printk("  .. OK\n");
+    printk("INFO_SDK [%s-%d] :   .. OK\n", __func__, __LINE__);
     int HTTP_HEAD_LEN = snprintk(send_buf,
 	    500, /*total length should not exceed MTU size*/
 	    GET_TEMPLATE, cpid, env,
@@ -880,7 +850,7 @@ char* get_base_url(char*Host, char *cpid, char *env)
             bytes = send(fd, &send_buf[off], HTTP_HEAD_LEN - off, 0);
             if (bytes < 0) 
             {
-                printk("send() failed, err %d\n", errno);
+                printk("ERR_SDK [%s-%d] : send() failed, err %d\n", __func__, __LINE__, errno);
                 goto clean_up;
             }
             off += bytes;
@@ -891,7 +861,7 @@ char* get_base_url(char*Host, char *cpid, char *env)
             bytes = recv(fd, &recv_buf[off], MAXLINE - off, 0);
             if (bytes < 0) 
             {
-                printk("recv() failed, err %d\n", errno);
+                printk("ERR_SDK [%s-%d] : recv() failed, err %d\n", __func__, __LINE__, errno);
                 goto clean_up;
             }
             off += bytes;
@@ -901,13 +871,10 @@ char* get_base_url(char*Host, char *cpid, char *env)
     cJSON *root = cJSON_Parse(p);
     if(root == NULL)
     {
-        printk("This is NOT json format  -> (%s) error(%d) ", __func__, __LINE__);
+        printk("ERR_SDK [%s-%d] : This is NOT json format", __func__, __LINE__);
         return NULL;
 	} 
-    else 
-    {
-		printk("This is json format");
-	}
+
     
     cJSON *Base_data = NULL;
     Base_data = cJSON_GetObjectItem(root, "d");  // JSON : d
@@ -919,12 +886,11 @@ char* get_base_url(char*Host, char *cpid, char *env)
 
     if (Base_URL != NULL)
     {
-        printk("Base_URL : %s",Base_URL);
-        // strcat(Base_URL,"sync");
         return Base_URL;
     }
     else
     {
+        printk("ERR_SDK [%s-%d] : Base_URL not found.", __func__, __LINE__);
         return NULL;
     }
     
@@ -935,14 +901,13 @@ char* get_base_url(char*Host, char *cpid, char *env)
 
 
 /********************************************************************
-    you need to pass remain_url ,host, post_data_lan and post_data
+    you need to pass remain_url , Unique Id, host
 *********************************************************************/
-#define GET_SYNC_TEMPLATE                                            \
-	"GET /%s/uid/%s HTTP/1.1\r\n"            \
+#define GET_SYNC_TEMPLATE                                       \
+	"GET /%s/uid/%s HTTP/1.1\r\n"                               \
 	"Host: %s\r\n"                                              \
 	"Content-Type: application/json; charset=utf-8\r\n"         \
     "Connection: close\r\n\r\n"
-
 
 /***************************************************************
     This templates can be used for raw HTTP headers 
@@ -950,23 +915,6 @@ char* get_base_url(char*Host, char *cpid, char *env)
     you need to pass URL returned from discovery host,
     host form discovery host, post_data_lan and post_data
 ****************************************************************/
-// #define IOTCONNECT_SYNC_HEADER_TEMPLATE \
-//     "POST /api/2.0/agent/sync? HTTP/1.1\r\n" \
-//     "Host: %s\r\n" \
-//     "Content-Type: application/json; charset=utf-8\r\n" \
-//     "Connection: close\r\n" \
-//     "Content-length: %d\r\n" \
-//     "\r\n" \
-//     "%s"
-
-// // You will typically use this JSON post data to get mqtt client information
-// #define IOTCONNECT_DISCOVERY_PROTOCOL_POST_DATA_TEMPLATE "{\"cpId\":\"%s\",\"uniqueId\":\"%s\",\"option\":{\"attribute\":false,\"setting\":false,\"protocol\":true,\"device\":false,\"sdkConfig\":false,\"rule\":false}}"
-
-// // add 1 for string terminator
-// #define IOTCONNECT_DISCOVERY_PROTOCOL_POST_DATA_MAX_LEN (\
-//     sizeof(IOTCONNECT_DISCOVERY_PROTOCOL_POST_DATA_TEMPLATE) + \
-//     CONFIG_IOTCONNECT_DUID_MAX_LEN + CONFIG_IOTCONNECT_CPID_MAX_LEN \
-//     )
 
 char* Sync_call(char *cpid, char *uniqueid, char *base_url)
 {
@@ -988,29 +936,23 @@ char* Sync_call(char *cpid, char *uniqueid, char *base_url)
     AgentHost = strtok(NULL, "/");
     AgentPath = strtok(NULL, "");
 
-    
- 
-    printk("AgentHost : %s\r\n", AgentHost);
-    printk("AgentPath : %s\r\n", AgentPath);
-
     if (AgentHost == NULL) {
-        printf("AgentHost not found.\n");
+        printk("ERR_SDK [%s-%d] : AgentHost not found.", __func__, __LINE__);
     }
 
     err = getaddrinfo(AgentHost, HTTPS_PORT, &hints, &res);
 	if (err) {
-		printk("getaddrinfo() failed, err %d\n", errno);
+        printk("ERR_SDK [%s-%d] : getaddrinfo() failed, err %d\n", __func__, __LINE__, errno);
 		return 0;
-	}  
-    //((struct sockaddr_in *)res->ai_addr)->sin_port = htons(IOTCONNECT_SERVER_HTTP_PORT);
+	} 
    
     inet_ntop(res->ai_family, &((struct sockaddr_in *)(res->ai_addr))->sin_addr, peer_addr, INET6_ADDRSTRLEN);
-	printk("Resolved %s (%s)\n", peer_addr, net_family2str(res->ai_family));
+    printk("INFO_SDK [%s-%d] : Resolved %s (%s)\n", __func__, __LINE__, peer_addr, net_family2str(res->ai_family));
 
 
     fdP = socket(AF_INET, SOCK_STREAM, IPPROTO_TLS_1_2);
     if (fdP == -1) {
-        printk("Failed to open socket!\n");
+        printk("ERR_SDK [%s-%d] : Failed to open socket!\n", __func__, __LINE__);
         goto clean_up;
     }
     err = tls_setup(fdP);
@@ -1018,13 +960,13 @@ char* Sync_call(char *cpid, char *uniqueid, char *base_url)
         goto clean_up;
     }
 
-    printk("Connecting to %s:%d\n", AgentHost,	ntohs(((struct sockaddr_in *)(res->ai_addr))->sin_port));
+    printk("INFO_SDK [%s-%d] : Connecting to %s:%d\n", __func__, __LINE__, AgentHost, ntohs(((struct sockaddr_in *)(res->ai_addr))->sin_port));
     err = connect(fdP, res->ai_addr, res->ai_addrlen);
     if (err) {
-        printk("connect() failed, err: %d\n", errno);
+        printk("ERR_SDK [%s-%d] : connect() failed, err: %d\n", __func__, __LINE__, errno);
         goto clean_up;
     }
-    printk("  .. OK\n");
+    printk("INFO_SDK [%s-%d] :   .. OK\n", __func__, __LINE__);
     //char send_buf[2047 + 1];
     int HTTP_HEAD_LEN = snprintf(send_buf, sizeof(send_buf), GET_SYNC_TEMPLATE, AgentPath, uniqueid, AgentHost);
 
@@ -1032,7 +974,7 @@ char* Sync_call(char *cpid, char *uniqueid, char *base_url)
     do {
         bytes = send(fdP, &send_buf[off], HTTP_HEAD_LEN - off, 0);
         if (bytes < 0) {
-            printk("send() failed, err %d\n", errno);
+            printk("ERR_SDK [%s-%d] : send() failed, err %d\n", __func__, __LINE__, errno);
             goto clean_up;
         }
         off += bytes;
@@ -1042,18 +984,15 @@ char* Sync_call(char *cpid, char *uniqueid, char *base_url)
     do {
         bytes = recv(fdP, &recv_buf[off], MAXLINE - off, 0);
         if (bytes < 0) {
-            printk("recv() failed, err %d\n", errno);
+            printk("ERR_SDK [%s-%d] : recv() failed, err %d\n", __func__, __LINE__, errno);
             goto clean_up;
         }
         off += bytes;
 	} while (bytes != 0 );
 
-    // printk("recv_buf : %s\n", recv_buf);
     k_msleep(500);
 
     Sync_call_resp = strstr(recv_buf, "\r\n{");
-
-    printk("Sync_call_resp : %s\n", Sync_call_resp);
 
     return Sync_call_resp;
 
@@ -1081,146 +1020,113 @@ int Save_Sync_Responce(char *sync_data)
     k_msleep(100);
 
     // Received JSON
-    Sync_data = cJSON_GetObjectItemCaseSensitive(root, "d"); // JSON : d
-    SYNC_resp_new.ec = cJSON_GetObjectItem(Sync_data, "ec")->valueint;  // JSON : d : ec
-    // printk("SYNC_resp_new.ec : %d\r\n", SYNC_resp_new.ec);
-    // k_msleep(100);
+    // JSON : d
+    Sync_data = cJSON_GetObjectItemCaseSensitive(root, "d"); 
+    // JSON : d : ec
+    SYNC_resp_new.ec = cJSON_GetObjectItem(Sync_data, "ec")->valueint;
 
     if(SYNC_resp_new.ec == 0)
     {
-        printk("Device Registered Successfully...\r\n");
+        printk("INFO_SDK [%s-%d] : Device Registered Successfully...\n", __func__, __LINE__);
+
         // from JSON >> META parameters data
-        Sync_meta = cJSON_GetObjectItemCaseSensitive(Sync_data, "meta"); // JSON : d : meta
-
-        SYNC_resp_new.meta.at = cJSON_GetObjectItem(Sync_meta, "at")->valueint; // JSON : d : meta : at
-        // printk("SYNC_resp_new.meta.at : %d\r\n",SYNC_resp_new.meta.at);
-        // k_msleep(100);
-
-        SYNC_resp_new.meta.df = cJSON_GetObjectItem(Sync_meta, "df")->valueint; // JSON : d : meta : df
-        // printk("SYNC_resp_new.meta.df : %d\r\n",SYNC_resp_new.meta.df);
-        // k_msleep(100);
-
+        // JSON : d : meta
+        Sync_meta = cJSON_GetObjectItemCaseSensitive(Sync_data, "meta"); 
+        // JSON : d : meta : at
+        SYNC_resp_new.meta.at = cJSON_GetObjectItem(Sync_meta, "at")->valueint; 
+        // JSON : d : meta : df
+        SYNC_resp_new.meta.df = cJSON_GetObjectItem(Sync_meta, "df")->valueint; 
+ 
         // from JSON >> HAS parameters data
+        // JSON : d : has
         Sync_has = cJSON_GetObjectItemCaseSensitive(Sync_data, "has"); // JSON : d : has
 
-        SYNC_resp_new.has.d = cJSON_GetObjectItem(Sync_has, "d")->valueint; // JSON : d : has : d
-        // printk("SYNC_resp_new.has.d : %d\r\n", SYNC_resp_new.has.d);
-        // k_msleep(100);
-
-        SYNC_resp_new.has.attr = cJSON_GetObjectItem(Sync_has, "attr")->valueint; // JSON : d : has : attr
-        // printk("SYNC_resp_new.has.attr : %d\r\n", SYNC_resp_new.has.attr);
-        // k_msleep(100);
-
-        SYNC_resp_new.has.sett = cJSON_GetObjectItem(Sync_has, "set")->valueint; // JSON : d : has : set
-        // printk("SYNC_resp_new.has.sett : %d\r\n", SYNC_resp_new.has.sett);
-        // k_msleep(100);
-
-        SYNC_resp_new.has.rule = cJSON_GetObjectItem(Sync_has, "r")->valueint; // JSON : d : has : r
-        // printk("SYNC_resp_new.has.rule : %d\r\n", SYNC_resp_new.has.rule);
-        // k_msleep(100);
-
-        SYNC_resp_new.has.ota = cJSON_GetObjectItem(Sync_has, "ota")->valueint; // JSON : d : has : r
-        // printk("SYNC_resp_new.has.ota : %d\r\n", SYNC_resp_new.has.ota);
-        // k_msleep(100);
-
-
+        // JSON : d : has : d
+        SYNC_resp_new.has.d = cJSON_GetObjectItem(Sync_has, "d")->valueint; 
+        // JSON : d : has : attr
+        SYNC_resp_new.has.attr = cJSON_GetObjectItem(Sync_has, "attr")->valueint; 
+        // JSON : d : has : set
+        SYNC_resp_new.has.sett = cJSON_GetObjectItem(Sync_has, "set")->valueint; 
+        // JSON : d : has : r
+        SYNC_resp_new.has.rule = cJSON_GetObjectItem(Sync_has, "r")->valueint; 
+        // JSON : d : has : ota
+        SYNC_resp_new.has.ota = cJSON_GetObjectItem(Sync_has, "ota")->valueint; 
+    
         // from JSON >> MQTT connection parameters data
-        Sync_para = cJSON_GetObjectItemCaseSensitive(Sync_data, "p"); // JSON : d : p
-
-        SYNC_resp_new.Broker.name = cJSON_GetObjectItem(Sync_para, "n")->valuestring; // JSON : d : p : n
-        // printk("SYNC_resp_new.Broker.name : %s\r\n",SYNC_resp_new.Broker.name);
-        // k_msleep(100);
-
-        SYNC_resp_new.Broker.host = cJSON_GetObjectItem(Sync_para, "h")->valuestring; // JSON : d : p : h
-        // printk("SYNC_resp_new.Broker.host : %s\r\n",SYNC_resp_new.Broker.host);
-        // k_msleep(100);
-
-        SYNC_resp_new.Broker.port = cJSON_GetObjectItem(Sync_para, "p")->valueint; // JSON : d : p : p
-        // printk("SYNC_resp_new.Broker.port : %d\r\n",SYNC_resp_new.Broker.port);
-        // k_msleep(100);
-
-        SYNC_resp_new.Broker.Id = cJSON_GetObjectItem(Sync_para, "id")->valuestring; // JSON : d : p : id
-        // printk("SYNC_resp_new.Broker.Id : %s\r\n",SYNC_resp_new.Broker.Id);
-        // k_msleep(100);
-
-        SYNC_resp_new.Broker.username = cJSON_GetObjectItem(Sync_para, "un")->valuestring; // JSON : d : p : un
-        // printk("SYNC_resp_new.Broker.username : %s\r\n",SYNC_resp_new.Broker.username);
-        // k_msleep(100);
-
+        // JSON : d : p
+        Sync_para = cJSON_GetObjectItemCaseSensitive(Sync_data, "p"); 
+        // JSON : d : p : n
+        SYNC_resp_new.Broker.name = cJSON_GetObjectItem(Sync_para, "n")->valuestring; 
+        // JSON : d : p : h
+        SYNC_resp_new.Broker.host = cJSON_GetObjectItem(Sync_para, "h")->valuestring; 
+        // JSON : d : p : p
+        SYNC_resp_new.Broker.port = cJSON_GetObjectItem(Sync_para, "p")->valueint; 
+        // JSON : d : p : id
+        SYNC_resp_new.Broker.Id = cJSON_GetObjectItem(Sync_para, "id")->valuestring; 
+        // JSON : d : p : un
+        SYNC_resp_new.Broker.username = cJSON_GetObjectItem(Sync_para, "un")->valuestring; 
+        
         if(cJSON_HasObjectItem(Sync_para, "pwd"))
         {
-            SYNC_resp_new.Broker.pwd = cJSON_GetObjectItem(Sync_para, "pwd")->valuestring; // JSON : d : p : pwd
-            // printk("SYNC_resp_new.Broker.pwd : %s\r\n",SYNC_resp_new.Broker.pwd);
-            // k_msleep(100);
+            // JSON : d : p : pwd
+            SYNC_resp_new.Broker.pwd = cJSON_GetObjectItem(Sync_para, "pwd")->valuestring; 
         }
 
         // from JSON >> MQTT pub/sub parameters data
-        mqtt_topics = cJSON_GetObjectItemCaseSensitive(Sync_para, "topics"); // JSON : d : p : topics
-
-        SYNC_resp_new.Broker.pubTopic = cJSON_GetObjectItem(mqtt_topics, "rpt")->valuestring; // JSON : d : p : topics : rpt
-        // printk("SYNC_resp_new.Broker.pubTopic : %s\r\n",SYNC_resp_new.Broker.pubTopic);
-        // k_msleep(100);
-
-        SYNC_resp_new.Broker.ack_pub = cJSON_GetObjectItem(mqtt_topics, "ack")->valuestring; // JSON : d : p : topics : ack
-        // printk("SYNC_resp_new.Broker.ack_pub : %s\r\n",SYNC_resp_new.Broker.ack_pub);
-        // k_msleep(100);
-
-        SYNC_resp_new.Broker.hb_topic = cJSON_GetObjectItem(mqtt_topics, "hb")->valuestring; // JSON : d : p : topics : hb
-        // printk("SYNC_resp_new.Broker.hb_topic : %s\r\n",SYNC_resp_new.Broker.hb_topic);
-        // k_msleep(100);
-
-        SYNC_resp_new.Broker.di = cJSON_GetObjectItem(mqtt_topics, "di")->valuestring; // JSON : d : p : topics : di
-        // printk("SYNC_resp_new.Broker.di : %s\r\n",SYNC_resp_new.Broker.di);
-        // k_msleep(100);
-
-        SYNC_resp_new.Broker.subTopic = cJSON_GetObjectItem(mqtt_topics, "c2d")->valuestring; // JSON : d : p : topics : c2d
-        // printk("SYNC_resp_new.Broker.subTopic : %s\r\n",SYNC_resp_new.Broker.subTopic);
-        // k_msleep(100);
+        // JSON : d : p : topics
+        mqtt_topics = cJSON_GetObjectItemCaseSensitive(Sync_para, "topics"); 
+        // JSON : d : p : topics : rpt
+        SYNC_resp_new.Broker.pubTopic = cJSON_GetObjectItem(mqtt_topics, "rpt")->valuestring; 
+        // JSON : d : p : topics : ack
+        SYNC_resp_new.Broker.ack_pub = cJSON_GetObjectItem(mqtt_topics, "ack")->valuestring; 
+        // JSON : d : p : topics : hb
+        SYNC_resp_new.Broker.hb_topic = cJSON_GetObjectItem(mqtt_topics, "hb")->valuestring; 
+        // JSON : d : p : topics : di
+        SYNC_resp_new.Broker.di = cJSON_GetObjectItem(mqtt_topics, "di")->valuestring; 
+        // JSON : d : p : topics : c2d
+        SYNC_resp_new.Broker.subTopic = cJSON_GetObjectItem(mqtt_topics, "c2d")->valuestring; 
 
         if(cJSON_HasObjectItem(mqtt_topics, "set"))
         {
-            shadow_topics = cJSON_GetObjectItemCaseSensitive(mqtt_topics, "set"); // JSON : d : p : topics : set
-
-            SYNC_resp_new.Broker.pubShadow = cJSON_GetObjectItem(shadow_topics, "pub")->valuestring; // JSON : d : p : topics : set : pub
-            // printk("SYNC_resp_new.Broker.pubShadow : %s\r\n", SYNC_resp_new.Broker.pubShadow);
-            SYNC_resp_new.Broker.subShadow = cJSON_GetObjectItem(shadow_topics, "sub")->valuestring; // JSON : d : p : topics : set : sub
-            // printk("SYNC_resp_new.Broker.subShadow : %s\r\n", SYNC_resp_new.Broker.subShadow);
-
-            SYNC_resp_new.Broker.pubAllShadow = cJSON_GetObjectItem(shadow_topics, "pubForAll")->valuestring; // JSON : d : p : topics : set : pubForAll
-            // printk("SYNC_resp_new.Broker.pubAllShadow : %s\r\n", SYNC_resp_new.Broker.pubAllShadow);
-            SYNC_resp_new.Broker.subAllShadow = cJSON_GetObjectItem(shadow_topics, "subForAll")->valuestring; // JSON : d : p : topics : set : subForAll
-            // printk("SYNC_resp_new.Broker.subAllShadow : %s\r\n", SYNC_resp_new.Broker.subAllShadow);
-        
+            // JSON : d : p : topics : set
+            shadow_topics = cJSON_GetObjectItemCaseSensitive(mqtt_topics, "set"); 
+            // JSON : d : p : topics : set : pub
+            SYNC_resp_new.Broker.pubShadow = cJSON_GetObjectItem(shadow_topics, "pub")->valuestring; 
+            // JSON : d : p : topics : set : sub
+            SYNC_resp_new.Broker.subShadow = cJSON_GetObjectItem(shadow_topics, "sub")->valuestring; 
+            // JSON : d : p : topics : set : pubForAll
+            SYNC_resp_new.Broker.pubAllShadow = cJSON_GetObjectItem(shadow_topics, "pubForAll")->valuestring; 
+            // JSON : d : p : topics : set : subForAll
+            SYNC_resp_new.Broker.subAllShadow = cJSON_GetObjectItem(shadow_topics, "subForAll")->valuestring; 
         }
-
     }
     else if(SYNC_resp_new.ec == 1)
     {
-        printk("  Device_Not_Register \n");
+        printk("INFO_SDK [%s-%d] : Device_Not_Register\n", __func__, __LINE__);
     }
     else if(SYNC_resp_new.ec == 2)
     {
-        printk("  Auto_Register \n");
+        printk("INFO_SDK [%s-%d] : Auto_Register\n", __func__, __LINE__);
     }
     else if(SYNC_resp_new.ec == 3)
     {
-        printk("  Device_Not_Found \n");
+        printk("INFO_SDK [%s-%d] : Device_Not_Found\n", __func__, __LINE__);
     }
     else if(SYNC_resp_new.ec == 4)
     {
-        printk("  Device_Inactive \n");
+        printk("INFO_SDK [%s-%d] : Device_Inactive\n", __func__, __LINE__);
     }
     else if(SYNC_resp_new.ec == 5)
     {
-        printk("  Object_Moved \n");
+        printk("INFO_SDK [%s-%d] : Object_Moved\n", __func__, __LINE__);
     }
     else if(SYNC_resp_new.ec == 6)
     {
-        printk("  Cpid_Not_Found \n");
+        printk("INFO_SDK [%s-%d] : Cpid_Not_Found\n", __func__, __LINE__);
     }
     else
     {
-        printk("  No Device_status has been matched..! 000\n");
+        printk("INFO_SDK [%s-%d] : No Device_status has been matched..!\n", __func__, __LINE__);
     }
 
     return 0;
@@ -1233,39 +1139,38 @@ int Save_Sync_Responce(char *sync_data)
 *************************************************/
 void data_print(uint8_t *prefix, uint8_t *data, char *topic, size_t len)
 {
-    printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
-    // printk("SUB Tpoic : %s\r\n",topic);
     char buf[len];
-    cJSON *root,*root2,*data_R;
-    char *SMS, *cmd;
+    cJSON *root,*root2;
+    char *SMS;
     memcpy(buf, data, len);
     if (strlen(buf) > 5)
     {
         if(! strncmp(topic, SYNC_resp_new.Broker.subShadow, strlen(SYNC_resp_new.Broker.subShadow)))
         {        
-            printk("SUB Shadow DATA : %s\r\n",buf);
-    //         root = cJSON_Parse(buf);
-    //         cJSON_AddStringToObject(root,"uniqueId",uniqueID);
-    //         SMS = cJSON_PrintUnformatted(root);         
-            (*Twin_CallBack)(topic, buf);
-    //         k_msleep(10);
+            printk("INFO_SDK [%s-%d] : Shadow DATA\n", __func__, __LINE__);
             
-    //         cJSON_Delete(root);
-    //         free(SMS);
+            root = cJSON_CreateObject();
+            root2 = cJSON_Parse(buf);
+            cJSON_AddItemToObject(root,"desired",root2);
+            cJSON_AddStringToObject(root,"uniqueId",uniqueID);
+            SMS = cJSON_PrintUnformatted(root);   
+            (*Twin_CallBack)(topic, SMS);
+            k_msleep(10);
+            
+            cJSON_Delete(root);
+            free(SMS);
         }
         else if(! strncmp(topic, SYNC_resp_new.Broker.subAllShadow, strlen(SYNC_resp_new.Broker.subAllShadow)))
         {        
-            printk("SUB ALL Shadow DATA : %s\r\n",buf);
-    //         root = cJSON_CreateObject();
-    //         root2 = cJSON_Parse(buf);
-    //         cJSON_AddItemToObject(root,"desired",root2);
-    //         cJSON_AddStringToObject(root,"uniqueId",uniqueID);
-    //         SMS = cJSON_PrintUnformatted(root);   
-            (*Twin_CallBack)(topic, buf);
-    //         k_msleep(10);
+            printk("INFO_SDK [%s-%d] : ALL Shadow DATA\n", __func__, __LINE__);
+            root = cJSON_Parse(buf);
+            cJSON_AddStringToObject(root,"uniqueId",uniqueID);
+            SMS = cJSON_PrintUnformatted(root);         
+            (*Twin_CallBack)(topic, SMS);
+            k_msleep(10);
             
-    //         cJSON_Delete(root);
-    //         free(SMS);
+            cJSON_Delete(root);
+            free(SMS);
         }
         else 
         {
@@ -1277,62 +1182,62 @@ void data_print(uint8_t *prefix, uint8_t *data, char *topic, size_t len)
                 switch (ct_value) 
                 {
                     case 0://Device command
-                    printk("Device Commad Received : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Device Commad Received : %s\n", __func__, __LINE__, buf);
                     (*Device_CallBack)(topic, buf);
                     break;
 
                     case 1://OTA Command
-                    printk("OTA Command Received : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : OTA Command Received : : %s\n", __func__, __LINE__, buf);
                     (*Device_CallBack)(topic, buf);
                     break;
 
                     case 2://Module Command
-                    printk("Module Commad Received : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Module Commad Received : %s\n", __func__, __LINE__, buf);
                     (*Device_CallBack)(topic, buf);
                     break;
 
                     case 101://Refresh Attribute
-                    printk("Refresh Attribute : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Refresh Attribute : %s\n", __func__, __LINE__, buf);
                     break;
 
                     case 102://Refresh Setting/Twin
-                    printk("Refresh Twin : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Refresh Twin : %s\n", __func__, __LINE__, buf);
                     break;
 
                     case 104://Refresh Child Device
-                    printk("Refresh Child Device  : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Refresh Child Device : %s\n", __func__, __LINE__, buf);
                     break;
             
                     case 105://Data Frequency Change
-                    printk("Data Frequency Change : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Data Frequency Change : %s\n", __func__, __LINE__, buf);
                     break;
             
                     case 106://Device Deleted
-                    printk("Device Delete : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Device Delete : %s\n", __func__, __LINE__, buf);
                     break;
             
                     case 107://Device Disabled
-                    printk("Device Disable : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Device Disable : %s\n", __func__, __LINE__, buf);
                     break;
             
                     case 108://Device Released
-                    printk("On Close : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : On Close : %s\n", __func__, __LINE__, buf);
                     break;
             
                     case 109://Stop Operation
-                    printk("Stop Operation : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Stop Operation : %s\n", __func__, __LINE__, buf);
                     break;
             
                     case 110://Start Heartbeat
-                    printk("Start Heartbeat : %s", buf);
+                    printk("INFO_SDK [%s-%d] : Start Heartbeat : %s\n", __func__, __LINE__, buf);
                     break;
             
                     case 111://Stop Heartbeat
-                    printk("Stop Heartbeat : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Stop Heartbeat : %s\n", __func__, __LINE__, buf);
                     break;
             
                     case 116://Device connection status command
-                    printk("Device connection status Commad Received : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Device connection status Commad Received : %s\n", __func__, __LINE__, buf);
                     (*Device_CallBack)(topic, buf);
                     break;
             
@@ -1343,42 +1248,22 @@ void data_print(uint8_t *prefix, uint8_t *data, char *topic, size_t len)
             {
                 root2 = (cJSON_GetObjectItem(root, "d"));
                 int ct_value = (cJSON_GetObjectItem(root2, "ct")->valueint);
-                printk(">>>>> ct_value : %d\r\n",ct_value);
 
                 if(ct_value == 201)
                 {
-                    printk("Attribute Received : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Attribute Received : %s\n", __func__, __LINE__, buf);
                 }
                 if(ct_value == 202)
                 {
-                    printk("Twin Received : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Twin Received : %s\n", __func__, __LINE__, buf);
                 }
                 if(ct_value == 204)
                 {
-                    printk("Child Received : %s\r\n", buf);
+                    printk("INFO_SDK [%s-%d] : Child Received : %s\n", __func__, __LINE__, buf);
                 }
             }
-    //         
-
-    //         // if( (!strcmp(cmd,"0x01")) || ( !strcmp(cmd,"0x02")) )
-    //         // {
-    //         // //     data_R = cJSON_GetObjectItemCaseSensitive(root, "data");
-    //         //     // SMS = cJSON_PrintUnformatted(data_R);
-    //         //     (*Device_CallBack)(topic, buf);
-    //         //     k_msleep(10);
-                
-    //         // //     cJSON_Delete(root);
-    //         // //     free(SMS);
-    //         // }
-    //         // else 
-    //         // {
-    //         //     printk("Received_cmd(buf)");
-    //         //     // Received_cmd(buf);         
-    //         // }
-    //         // k_msleep(10);
        }
     }
-    // else ;
 }
 
 
@@ -1387,14 +1272,14 @@ void data_print(uint8_t *prefix, uint8_t *data, char *topic, size_t len)
 *************************************************/
 int getAllTwins(void)
 {
-    if ( ! data_publish(&client,twinResponsePubTopic, 1, " ", strlen(" ")))
+    if ( ! data_publish(&client,"", 1, " ", strlen(" ")))
     {
-        printk("getAllTwins Publish\r\n");
+        printk("INFO_SDK [%s-%d] : getAllTwins Publish : Success\n", __func__, __LINE__);
     }
     else
     {
-        printk("getAllTwins Publish Failed\r\n");
-        return -1;
+        printk("ERR_SDK [%s-%d] : getAllTwins Publish : Fail\n", __func__, __LINE__);
+        return 1;
     }
     return 0;
 }
@@ -1405,11 +1290,12 @@ int getAllTwins(void)
 *************************************************/
 int IoTConnect_Abort(void)
 {
-   printk("SDK is Disconnected From IoTConnect ::\r\n");
-   int sd = mqtt_disconnect(&client);  Flag_99 = false;  k_msleep(100);
-   printk("disconnection %d\r\n",sd);
-   return 0 ;
-   
+   printk("INFO_SDK [%s-%d] : SDK is Disconnected From IoTConnect\n", __func__, __LINE__);
+   int sd = mqtt_disconnect(&client);
+   Flag_99 = false;
+   k_msleep(100);
+   printk("INFO_SDK [%s-%d] : MQTT Disconnection %d\r\n", __func__, __LINE__, sd);
+   return 0;
 }
 
 
@@ -1419,7 +1305,6 @@ int IoTConnect_Abort(void)
 int errPub;
 int SendData(char *Attribute_json_Data)
 {
-    // printk(" Debug : Fun -> %s : Line -> %d\r\n", __func__, __LINE__);
     int err;
     if(Flag_99 && connected)
     { 
@@ -1427,7 +1312,6 @@ int SendData(char *Attribute_json_Data)
         long int Timediff = GetTimeDiff(NowTime, LastTime);
         if (SYNC_resp_new.meta.df < Timediff) 
         {
-            printk("SYNC_resp_new.meta.df : %d\r\n", SYNC_resp_new.meta.df);
             if(!SYNC_resp_new.ec)
             {
                 cJSON *To_HUB_json, *sdk, *device, *device2, *data1, *Device_data1;
@@ -1436,19 +1320,12 @@ int SendData(char *Attribute_json_Data)
                 To_HUB_json = cJSON_CreateObject();
                 if (To_HUB_json == NULL)
                 {
-                  printk("Unable to allocate To_HUB_json Object\n");
-                  return -1;    
+                    printk("ERR_SDK [%s-%d] : Unable to allocate To_HUB_json Object\n", __func__, __LINE__);
+                    return 1;
                 }
-                // cJSON_AddStringToObject(To_HUB_json, "cpId", SYNC_resp.cpId);
-                // cJSON_AddStringToObject(To_HUB_json, "dtg", SYNC_resp.dtg);
+
                 cJSON *parameter = cJSON_GetArrayItem(root, 0);
 
-                // cJSON_AddStringToObject(To_HUB_json, "dt", cJSON_GetObjectItem(parameter, "time")->valuestring);
-                // cJSON_AddNumberToObject(To_HUB_json, "mt", 0);
-                // cJSON_AddItemToObject(To_HUB_json, "sdk", sdk = cJSON_CreateObject());
-                // cJSON_AddStringToObject(sdk,"l","M_C");
-                // cJSON_AddStringToObject(sdk,"v","2.0");
-                // cJSON_AddStringToObject(sdk,"e",ENVT);
                 cJSON_AddItemToObject(To_HUB_json, "d", device = cJSON_CreateArray());
                 cJSON_AddStringToObject(To_HUB_json, "dt", cJSON_GetObjectItem(parameter, "time")->valuestring);
 
@@ -1463,17 +1340,11 @@ int SendData(char *Attribute_json_Data)
                     cJSON_AddStringToObject(Device_data1, "tg", "");
                     data1 = cJSON_GetObjectItem(parameter, "data");
                     cJSON_AddItemToObject(Device_data1, "d", data1);
-                    // cJSON_AddItemToObject(Device_data1, "d", device2 = cJSON_CreateObject());
-                    // data1 = cJSON_GetObjectItem(parameter, "data");
-                    // cJSON_AddItemToArray(device2,data1);
                 }
                 To_HUB_json_data =  cJSON_PrintUnformatted(To_HUB_json);
                 cJSON_Delete(To_HUB_json);
-                printk("Publishing data...\n");
-                printk("To_HUB_json_data : \n%s\n",To_HUB_json_data);
+                printk("INFO_SDK [%s-%d] : Publishing data...\n", __func__, __LINE__);
                 errPub = data_publish(&client, SYNC_resp_new.Broker.pubTopic, 1, To_HUB_json_data, strlen(To_HUB_json_data));
-
-                printk("SYNC_resp_new.Broker.pubTopic : %s\n",SYNC_resp_new.Broker.pubTopic);
 
                 for(int ss=0;ss<25;ss++)
                     LastTime[ss] = NowTime[ss];
@@ -1481,20 +1352,19 @@ int SendData(char *Attribute_json_Data)
   
                 if ( errPub == 0)
                 {
-                    printk("INFO_SD01 [%s %s] : publish data id %d\n",CPID, uniqueID, mid_num);
-                    pubAck = false;
+                    printk("INFO_SDK [%s-%d] : Publish data id %d : Success\n", __func__, __LINE__, mid_num);
                 } 
                 else
                 {
-                    printk("ERR_SD01 [%s %s] : Publish data failed err %d: MQTT connection not found\n", CPID, uniqueID, errPub);
+                    printk("ERR_SDK [%s-%d] : Publish data err %d : Fail\n", __func__, __LINE__, errPub);
                 }
             }
         }
     }
     else
     {
-        printk("INFO_DC01 [%s-%s] : Device already disconnected\r\n",CPID,uniqueID);
-        return -1;
+        printk("INFO_SDK [%s-%d] : Device already disconnected\n", __func__, __LINE__);
+        return 1;
     }
     return 0;
 }
@@ -1510,7 +1380,7 @@ int GetTimeDiff(char newT[25], char oldT[25])
  
     // Parse the new date&time input string
     if (strptime(newT, "%Y-%m-%dT%H:%M:%S.000Z", &newTm) == NULL) {
-        printk(stderr, "[GetTimeDiff] : Failed to parse date string\n");
+        printk("ERR_SDK [%s-%d] : Failed to parse date string\n", __func__, __LINE__);
         return 1;
     }
  
@@ -1518,13 +1388,13 @@ int GetTimeDiff(char newT[25], char oldT[25])
     time_t new_epoch_time = mktime(&newTm);
  
     if (new_epoch_time == -1) {
-        printk(stderr, "[GetTimeDiff] : Failed to convert newTm struct to epoch time\n");
+        printk("ERR_SDK [%s-%d] : Failed to convert newTm struct to epoch time\n", __func__, __LINE__);
         return 1;
     }
 
     // Parse the old date&time input string
     if (strptime(oldT, "%Y-%m-%dT%H:%M:%S.000Z", &oldTm) == NULL) {
-        printk(stderr, "[GetTimeDiff] : Failed to parse date string\n");
+        printk("ERR_SDK [%s-%d] : Failed to parse date string\n", __func__, __LINE__);
         return 1;
     }
  
@@ -1532,12 +1402,12 @@ int GetTimeDiff(char newT[25], char oldT[25])
     time_t old_epoch_time = mktime(&oldTm);
  
     if (old_epoch_time == -1) {
-        printk(stderr, "[GetTimeDiff] : Failed to convert oldTm struct to epoch time\n");
+        printk("ERR_SDK [%s-%d] : Failed to convert oldTm struct to epoch time\n", __func__, __LINE__);
         return 1;
     }
  
     int time_diff = (new_epoch_time - old_epoch_time);
-    printk("Time Diff : %d\r\n",time_diff);
+    printk("INFO_SDK [%s-%d] : Time Difference : %d\n", __func__, __LINE__, time_diff);
     return time_diff;
 }
 
@@ -1550,17 +1420,21 @@ int UpdateTwin_Str(char *key,char *value)
     char *Twin_Json_Data;
     cJSON *root = cJSON_CreateObject();
 
-    if(root == NULL)
+    if (root == NULL)
     {
-        return 1;
+        printk("ERR_SDK [%s-%d] : Unable to allocate Update Twin Object\n",__func__, __LINE__);
+        return 1;    
     }
 
     cJSON_AddStringToObject(root, key, value);
     Twin_Json_Data = cJSON_PrintUnformatted(root);
  
-    if ( ! data_publish(&client, twinPropertyPubTopic, 0, Twin_Json_Data, strlen(Twin_Json_Data)))
+    if ( ! data_publish(&client, SYNC_resp_new.Broker.pubShadow, 0, Twin_Json_Data, strlen(Twin_Json_Data)))
     {
-        printk("\n\t Twin_Update_Data Publish ");
+        printk("INFO_SDK [%s-%d] : Twin Update Data Publish : Success\n",__func__, __LINE__);
+    }
+    else{
+        printk("ERR_SDK [%s-%d] : Twin Update Data Publish : Fail\n",__func__, __LINE__);
     }
 
     cJSON_Delete(root);
@@ -1578,65 +1452,26 @@ int UpdateTwin_Int(char *key, int value){
     cJSON *root;
     root  = cJSON_CreateObject();
 
+    if (root == NULL)
+    {
+        printk("ERR_SDK [%s-%d] : Unable to allocate Update Twin Object\n",__func__, __LINE__);
+        return 1;    
+    }
+
     cJSON_AddNumberToObject(root, key, value);
     Twin_Json_Data = cJSON_PrintUnformatted(root);
+
  
-    if ( ! data_publish(&client, twinPropertyPubTopic, 0, Twin_Json_Data, strlen(Twin_Json_Data))){
-        printf("\n\t Twin_Update_Data Publish ");
-        }
+    if ( ! data_publish(&client, SYNC_resp_new.Broker.pubShadow, 0, Twin_Json_Data, strlen(Twin_Json_Data)))
+    {
+        printk("INFO_SDK [%s-%d] : Twin Update Data Publish : Success\n",__func__, __LINE__);
+    }
+    else{
+        printk("ERR_SDK [%s-%d] : Twin Update Data Publish : Fail\n",__func__, __LINE__);
+    }
 
     cJSON_Delete(root);
     free(Twin_Json_Data);
-}
-
-
-/*************************************
-    Received command to control SDK
-*************************************/
-void Received_cmd(char *in_cmd)
-{
-
-    char *cmdValue, payLoad;
-    cJSON * root = cJSON_Parse(in_cmd);
-
-    cmdValue = (cJSON_GetObjectItem(root, "cmdType"))->valuestring;
-    if( !strcmp(cmdValue,"0x10"))
-    {
-        printk("Get Response code for Attribute Changed");
-        return ;
-    }
-
-    else if( !strcmp(cmdValue,"0x11"))
-    {
-        printk("Get Response code for Setting Changed");
-        return ;
-    }
-
-    else if( !strcmp(cmdValue,"0x12"))
-    {
-        printk("Get Response code for MQTT Password Changed");
-        mqtt_disconnect(&client);  k_msleep(100);
-        payLoad = Sync_call(CPID,uniqueID,Burl);
-        Save_Sync_Responce(payLoad);MQTT_Init();
-        
-    }
-    else if( !strcmp(cmdValue,"0x13"))
-    {
-        printk("Get Response code for Device Changed");
-        return ;
-    }
-    else if( !strcmp(cmdValue,"0x15"))
-    {
-        printk("Get Response code for Rule Changed");
-        return ;
-    }
-    else if( !strcmp(cmdValue,"0x99"))
-    {
-        printk("\n\t:: SDK is Disconnected From IoTConnect ::");
-        printk("\n\t:: SDK is Disconnected From IoTConnect ::");
-        mqtt_disconnect(&client);  Flag_99 = false;
-        return ;
-    }
 }
 
 
@@ -1650,27 +1485,26 @@ int SendAck(char *Ack_Data, int messageType)
     Ack_Json2 = cJSON_CreateObject();
     if (Ack_Json2 == NULL)
     {
-        printk("\nUnable to allocate Ack_Json2 Object in SendAck");
-        return -1;    
+        printk("ERR_SDK [%s-%d] : Unable to allocate Ack_Json2 Object in SendAck\n",__func__, __LINE__);
+        return 1;    
     }
 
     cJSON_AddStringToObject(Ack_Json2, "dt",Get_Time());
     cJSON *root = cJSON_Parse(Ack_Data);
     cJSON_AddItemToObject(Ack_Json2, "d", root);
     Ack_Json_Data = cJSON_PrintUnformatted(Ack_Json2);
-    printk("Ack_Json_Data : %s\r\n", Ack_Json_Data);
 
     cJSON_Delete(root);
     cJSON_Delete(Ack_Json2);
 
     if ( ! data_publish(&client, SYNC_resp_new.Broker.ack_pub, 1, Ack_Json_Data, strlen(Ack_Json_Data)))
     {
-        printk("Ack_Json_Data Publish\n");
+        printk("INFO_SDK [%s-%d] : Ack_Json_Data Publish : Success\n\n",__func__, __LINE__);
     }
     else
     {
-        printk("Ack_Json_Data not Publish\n");
-        return -1;
+        printk("ERR_SDK [%s-%d] : Ack_Json_Data Publish : Fail\n",__func__, __LINE__);
+        return 1;
     }
 
     return 0;
