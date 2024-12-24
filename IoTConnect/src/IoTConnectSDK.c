@@ -24,7 +24,7 @@ static struct mqtt_client client;
 static struct sockaddr_storage broker;
 static bool connected;
 static struct pollfd fds;
-uint16_t mid_num = 0;
+uint16_t midNum = 0;
 
 
 #define CONFIG_PROVISION_CERTIFICATES
@@ -34,9 +34,9 @@ uint16_t mid_num = 0;
 
 #endif
 /* Buffers for MQTT client. */
-static uint8_t rx_buffer[MAXLINE];
-static uint8_t tx_buffer[MAXLINE];
-static uint8_t payload_buf[MAXLINE];
+static uint8_t rxBuffer[MAXLINE];
+static uint8_t txBuffer[MAXLINE];
+static uint8_t payloadBuf[MAXLINE];
 //BUILD_ASSERT_MSG(sizeof(CLOUD_CA_CERTIFICATE) < KB(4), "Certificate too large");
 BUILD_ASSERT(sizeof(CLOUD_CA_CERTIFICATE) < KB(4), "Certificate too large");
 
@@ -105,12 +105,11 @@ typedef struct
 Sync_Resp_new SYNC_resp_new;
 
 
-char recv_buf[MAXLINE];
-char send_buf[2048 + 1];
-char *CPID =NULL, *Burl =NULL;
-char *ENVT =NULL, *uniqueID =NULL;
-char *Sync_call_resp;
-char *Base_url;
+char recvBuf[MAXLINE];
+char sendBuf[2048 + 1];
+char *CPID =NULL, *BASEURL =NULL;
+char *ENVT =NULL, *UNIQUEID =NULL;
+// char *Base_url;
 //char *Dpayload = " ", *Tpayload =NULL;
 // static bool pubAck;
 bool Flag_99 = true;
@@ -123,7 +122,7 @@ char LastTime[25] = "1970-01-01T00:00:00.000Z";
 static uint8_t certificates[][MAX_LEN] = {{CLOUD_CA_CERTIFICATE},
 				       {CLOUD_CLIENT_PRIVATE_KEY},
 				       {CLOUD_CLIENT_PUBLIC_CERTIFICATE} };
-static const size_t cert_len[] = {
+static const size_t certLen[] = {
 	sizeof(CLOUD_CA_CERTIFICATE) - 1, sizeof(CLOUD_CLIENT_PRIVATE_KEY) - 1,
 	sizeof(CLOUD_CLIENT_PUBLIC_CERTIFICATE) - 1
 };
@@ -163,7 +162,7 @@ int provision_certificates(void)
 
 char Date[25] = "20   ";
 static char timebuf[sizeof "2011-10-08T07:07:01.000Z"];
-int64_t current_time_ms;
+int64_t currentTimeInms;
 
 char *Get_Time(void)
 {
@@ -171,9 +170,9 @@ char *Get_Time(void)
 	struct tm ltm = { 0 };
 	int err;
 
-    err = date_time_now(&current_time_ms);
+    err = date_time_now(&currentTimeInms);
 
-    tp.tv_sec = current_time_ms / 1000;
+    tp.tv_sec = currentTimeInms / 1000;
     localtime_r(&tp.tv_sec, &ltm);
 	snprintk(Date, 25, "%04u-%02u-%02uT%02u:%02u:%02u.000Z",
 		ltm.tm_year + 1900, ltm.tm_mon + 1, ltm.tm_mday,
@@ -195,7 +194,7 @@ int data_publish(struct mqtt_client *c, char *topic, enum mqtt_qos qos,
 	param.message.topic.topic.size = strlen(param.message.topic.topic.utf8);
 	param.message.payload.data = data;
 	param.message.payload.len = len;
-	param.message_id = ++mid_num; //sys_rand32_get();
+	param.message_id = ++midNum; //sys_rand32_get();
 	param.dup_flag = 0;
 	param.retain_flag = 0;
 
@@ -257,10 +256,10 @@ int subscribe(void)
 ***********************************************/
 int publish_get_payload(struct mqtt_client *c, size_t length)
 {
-	uint8_t *buf = payload_buf;
+	uint8_t *buf = payloadBuf;
 	uint8_t *end = buf + length;
 
-	if (length > sizeof(payload_buf)) 
+	if (length > sizeof(payloadBuf)) 
     {
 		return -EMSGSIZE;
 	}
@@ -352,7 +351,7 @@ void mqtt_evt_handler(struct mqtt_client *const c, const struct mqtt_evt *evt)
 
             if (err >= 0)
             {
-                data_print("Received: ", payload_buf, pubpara->message.topic.topic.utf8, pubpara->message.payload.len);
+                data_print("Received: ", payloadBuf, pubpara->message.topic.topic.utf8, pubpara->message.payload.len);
             } 
             else 
             {
@@ -497,10 +496,10 @@ void client_init(struct mqtt_client *client)
     }
 	client->protocol_version = MQTT_VERSION_3_1_1;
 
-	client->rx_buf = rx_buffer;
-	client->rx_buf_size = sizeof(rx_buffer);
-	client->tx_buf = tx_buffer;
-	client->tx_buf_size = sizeof(tx_buffer);
+	client->rx_buf = rxBuffer;
+	client->rx_buf_size = sizeof(rxBuffer);
+	client->tx_buf = txBuffer;
+	client->tx_buf_size = sizeof(txBuffer);
 	
     #if defined(CONFIG_MQTT_LIB_TLS)
         struct mqtt_sec_config *tls_config = &client->transport.tls.config;
@@ -640,7 +639,8 @@ int IoTConnect_Init(char *cpID, char *UniqueID, char *Env,IOTConnectCallback Cal
 {
     int retry;
     int res;
-    char *sync_resp;
+    char *syncResp = NULL;
+    char *baseUrl = NULL;
 
     printk("INFO_SDK [%s-%d] : Start IoTConnect_Init\n", __func__, __LINE__);
 
@@ -653,16 +653,16 @@ int IoTConnect_Init(char *cpID, char *UniqueID, char *Env,IOTConnectCallback Cal
     if(Flag_99)
     {
         k_msleep(200);
-        Base_url = get_base_url(HTTPS_HOSTNAME,cpID,Env);
-        if (Base_url == NULL)
+        baseUrl = get_base_url(HTTPS_HOSTNAME,cpID,Env);
+        if (baseUrl == NULL)
         {
-            printk("ERR_SDK [%s-%d] : Base_url is NULL\n", __func__, __LINE__);
+            printk("ERR_SDK [%s-%d] : Base Url is NULL\n", __func__, __LINE__);
             return 1;
         }
             
         k_msleep(200);
-        sync_resp = Sync_call(cpID, UniqueID, Base_url);
-        if (sync_resp == NULL)
+        syncResp = Sync_call(cpID, UniqueID, baseUrl);
+        if (syncResp == NULL)
         {
             printk("ERR_SDK [%s-%d] : sync_resp\n", __func__, __LINE__); 
             return 1;
@@ -670,10 +670,10 @@ int IoTConnect_Init(char *cpID, char *UniqueID, char *Env,IOTConnectCallback Cal
         
         ENVT = Env;
         CPID = cpID;
-        Burl = Base_url;
-        uniqueID = UniqueID;
+        BASEURL = baseUrl;
+        UNIQUEID = UniqueID;
         
-        res = Save_Sync_Responce(sync_resp);
+        res = Save_Sync_Responce(syncResp);
 
         if ( !SYNC_resp_new.ec)
         {
@@ -696,11 +696,11 @@ int IoTConnect_Connect()
 {
     if(MQTT_Init() == 0)
     {
-        printk("INFO_SDK [%s-%d] : MQTT_Init : Success\n", __func__, __LINE__);
+        printk("INFO_SDK [%s-%d] : [%s-%s] MQTT Init : Success\n", __func__, __LINE__, CPID, UNIQUEID);
     }
     else
     {
-        printk("ERR_SDK [%s-%d] : MQTT_Init : Fail\n", __func__, __LINE__);
+        printk("ERR_SDK [%s-%d] : [%s-%s] MQTT Init : Fail\n", __func__, __LINE__, CPID, UNIQUEID);
         return 1;
     }
     k_msleep(100);
@@ -803,7 +803,7 @@ char* get_base_url(char*Host, char *cpid, char *env)
             .ai_flags = AI_NUMERICSERV,
             .ai_socktype = SOCK_STREAM,
     };  
-    char *Base_URL = NULL;
+    char *baseUrl = NULL;
     char peer_addr[INET6_ADDRSTRLEN];
 
     printk("INFO_SDK [%s-%d] : Get URL address ...\n", __func__, __LINE__);
@@ -840,14 +840,14 @@ char* get_base_url(char*Host, char *cpid, char *env)
         goto clean_up;
     }
     printk("INFO_SDK [%s-%d] :   .. OK\n", __func__, __LINE__);
-    int HTTP_HEAD_LEN = snprintk(send_buf,
+    int HTTP_HEAD_LEN = snprintk(sendBuf,
 	    500, /*total length should not exceed MTU size*/
 	    GET_TEMPLATE, cpid, env,
 	    HTTPS_HOSTNAME
             );
     off = 0;  
     do {
-            bytes = send(fd, &send_buf[off], HTTP_HEAD_LEN - off, 0);
+            bytes = send(fd, &sendBuf[off], HTTP_HEAD_LEN - off, 0);
             if (bytes < 0) 
             {
                 printk("ERR_SDK [%s-%d] : send() failed, err %d\n", __func__, __LINE__, errno);
@@ -858,7 +858,7 @@ char* get_base_url(char*Host, char *cpid, char *env)
 
     off = 0;
     do {
-            bytes = recv(fd, &recv_buf[off], MAXLINE - off, 0);
+            bytes = recv(fd, &recvBuf[off], MAXLINE - off, 0);
             if (bytes < 0) 
             {
                 printk("ERR_SDK [%s-%d] : recv() failed, err %d\n", __func__, __LINE__, errno);
@@ -867,7 +867,7 @@ char* get_base_url(char*Host, char *cpid, char *env)
             off += bytes;
 	} while (bytes != 0 );
 
-    p = strstr(recv_buf, "\r\n{");
+    p = strstr(recvBuf, "\r\n{");
     cJSON *root = cJSON_Parse(p);
     if(root == NULL)
     {
@@ -876,17 +876,17 @@ char* get_base_url(char*Host, char *cpid, char *env)
 	} 
 
     
-    cJSON *Base_data = NULL;
-    Base_data = cJSON_GetObjectItem(root, "d");  // JSON : d
-    Base_URL = cJSON_GetObjectItem(Base_data, "bu")->valuestring; // JSON : d : bu
+    cJSON *baseData = NULL;
+    baseData = cJSON_GetObjectItem(root, "d");  // JSON : d
+    baseUrl = cJSON_GetObjectItem(baseData, "bu")->valuestring; // JSON : d : bu
     char *PF = NULL;
-    PF = cJSON_GetObjectItem(Base_data, "pf")->valuestring; // JSON : d : pf
+    PF = cJSON_GetObjectItem(baseData, "pf")->valuestring; // JSON : d : pf
     close(fd);
     cJSON_Delete(root);
 
-    if (Base_URL != NULL)
+    if (baseUrl != NULL)
     {
-        return Base_URL;
+        return baseUrl;
     }
     else
     {
@@ -896,7 +896,7 @@ char* get_base_url(char*Host, char *cpid, char *env)
     
     clean_up:
         freeaddrinfo(IoT_res);
-        return Base_URL;
+        return baseUrl;
 }
 
 
@@ -916,11 +916,11 @@ char* get_base_url(char*Host, char *cpid, char *env)
     host form discovery host, post_data_lan and post_data
 ****************************************************************/
 
-char* Sync_call(char *cpid, char *uniqueid, char *base_url)
+char* Sync_call(char *cpid, char *uniqueid, char *baseUrl)
 {
     int err;
     int fdP;
-    char *Sync_call_resp = NULL;
+    char *synCallResp = NULL;
     int bytes;
     size_t off;
     struct addrinfo *res;
@@ -930,17 +930,17 @@ char* Sync_call(char *cpid, char *uniqueid, char *base_url)
     };  
     char peer_addr[INET6_ADDRSTRLEN];
     
-    char *AgentHost = NULL;
-    char *AgentPath = NULL;
-    AgentHost = strtok(base_url, "/");
-    AgentHost = strtok(NULL, "/");
-    AgentPath = strtok(NULL, "");
+    char *agentHost = NULL;
+    char *agentPath = NULL;
+    agentHost = strtok(baseUrl, "/");
+    agentHost = strtok(NULL, "/");
+    agentPath = strtok(NULL, "");
 
-    if (AgentHost == NULL) {
+    if (agentHost == NULL) {
         printk("ERR_SDK [%s-%d] : AgentHost not found.", __func__, __LINE__);
     }
 
-    err = getaddrinfo(AgentHost, HTTPS_PORT, &hints, &res);
+    err = getaddrinfo(agentHost, HTTPS_PORT, &hints, &res);
 	if (err) {
         printk("ERR_SDK [%s-%d] : getaddrinfo() failed, err %d\n", __func__, __LINE__, errno);
 		return 0;
@@ -960,19 +960,19 @@ char* Sync_call(char *cpid, char *uniqueid, char *base_url)
         goto clean_up;
     }
 
-    printk("INFO_SDK [%s-%d] : Connecting to %s:%d\n", __func__, __LINE__, AgentHost, ntohs(((struct sockaddr_in *)(res->ai_addr))->sin_port));
+    printk("INFO_SDK [%s-%d] : Connecting to %s:%d\n", __func__, __LINE__, agentHost, ntohs(((struct sockaddr_in *)(res->ai_addr))->sin_port));
     err = connect(fdP, res->ai_addr, res->ai_addrlen);
     if (err) {
         printk("ERR_SDK [%s-%d] : connect() failed, err: %d\n", __func__, __LINE__, errno);
         goto clean_up;
     }
     printk("INFO_SDK [%s-%d] :   .. OK\n", __func__, __LINE__);
-    //char send_buf[2047 + 1];
-    int HTTP_HEAD_LEN = snprintf(send_buf, sizeof(send_buf), GET_SYNC_TEMPLATE, AgentPath, uniqueid, AgentHost);
+    //char sendBuf[2047 + 1];
+    int HTTP_HEAD_LEN = snprintf(sendBuf, sizeof(sendBuf), GET_SYNC_TEMPLATE, agentPath, uniqueid, agentHost);
 
     off = 0;  
     do {
-        bytes = send(fdP, &send_buf[off], HTTP_HEAD_LEN - off, 0);
+        bytes = send(fdP, &sendBuf[off], HTTP_HEAD_LEN - off, 0);
         if (bytes < 0) {
             printk("ERR_SDK [%s-%d] : send() failed, err %d\n", __func__, __LINE__, errno);
             goto clean_up;
@@ -982,7 +982,7 @@ char* Sync_call(char *cpid, char *uniqueid, char *base_url)
 
     off = 0;
     do {
-        bytes = recv(fdP, &recv_buf[off], MAXLINE - off, 0);
+        bytes = recv(fdP, &recvBuf[off], MAXLINE - off, 0);
         if (bytes < 0) {
             printk("ERR_SDK [%s-%d] : recv() failed, err %d\n", __func__, __LINE__, errno);
             goto clean_up;
@@ -992,21 +992,21 @@ char* Sync_call(char *cpid, char *uniqueid, char *base_url)
 
     k_msleep(500);
 
-    Sync_call_resp = strstr(recv_buf, "\r\n{");
+    synCallResp = strstr(recvBuf, "\r\n{");
 
-    return Sync_call_resp;
+    return synCallResp;
 
 clean_up:
 	freeaddrinfo(res);
     close(fdP);
-    return Sync_call_resp;
+    return synCallResp;
 }
 
 
 /*************************************************
     Save syncResp in cache memory of device 
 *************************************************/
-int Save_Sync_Responce(char *sync_data)
+int Save_Sync_Responce(char *syncData)
 {
     cJSON *root = NULL;
     cJSON *Sync_data = NULL;
@@ -1015,7 +1015,7 @@ int Save_Sync_Responce(char *sync_data)
     cJSON *Sync_para = NULL;
     cJSON *mqtt_topics = NULL;
     cJSON *shadow_topics = NULL;
-    root = cJSON_Parse(sync_data);
+    root = cJSON_Parse(syncData);
 
     k_msleep(100);
 
@@ -1152,7 +1152,7 @@ void data_print(uint8_t *prefix, uint8_t *data, char *topic, size_t len)
             root = cJSON_CreateObject();
             root2 = cJSON_Parse(buf);
             cJSON_AddItemToObject(root,"desired",root2);
-            cJSON_AddStringToObject(root,"uniqueId",uniqueID);
+            cJSON_AddStringToObject(root,"uniqueId",UNIQUEID);
             SMS = cJSON_PrintUnformatted(root);   
             (*Twin_CallBack)(topic, SMS);
             k_msleep(10);
@@ -1164,7 +1164,7 @@ void data_print(uint8_t *prefix, uint8_t *data, char *topic, size_t len)
         {        
             printk("INFO_SDK [%s-%d] : ALL Shadow DATA\n", __func__, __LINE__);
             root = cJSON_Parse(buf);
-            cJSON_AddStringToObject(root,"uniqueId",uniqueID);
+            cJSON_AddStringToObject(root,"uniqueId",UNIQUEID);
             SMS = cJSON_PrintUnformatted(root);         
             (*Twin_CallBack)(topic, SMS);
             k_msleep(10);
@@ -1247,17 +1247,17 @@ void data_print(uint8_t *prefix, uint8_t *data, char *topic, size_t len)
             else
             {
                 root2 = (cJSON_GetObjectItem(root, "d"));
-                int ct_value = (cJSON_GetObjectItem(root2, "ct")->valueint);
+                int ctValue = (cJSON_GetObjectItem(root2, "ct")->valueint);
 
-                if(ct_value == 201)
+                if(ctValue == 201)
                 {
                     printk("INFO_SDK [%s-%d] : Attribute Received : %s\n", __func__, __LINE__, buf);
                 }
-                if(ct_value == 202)
+                if(ctValue == 202)
                 {
                     printk("INFO_SDK [%s-%d] : Twin Received : %s\n", __func__, __LINE__, buf);
                 }
-                if(ct_value == 204)
+                if(ctValue == 204)
                 {
                     printk("INFO_SDK [%s-%d] : Child Received : %s\n", __func__, __LINE__, buf);
                 }
@@ -1303,7 +1303,7 @@ int IoTConnect_Abort(void)
         Get Sensor data and send to cloud
 *************************************************/
 int errPub;
-int SendData(char *Attribute_json_Data)
+int SendData(char *attributeJsonData)
 {
     int err;
     if(Flag_99 && connected)
@@ -1315,8 +1315,8 @@ int SendData(char *Attribute_json_Data)
             if(!SYNC_resp_new.ec)
             {
                 cJSON *To_HUB_json, *sdk, *device, *device2, *data1, *Device_data1;
-                char *To_HUB_json_data = " ";
-                cJSON *root = cJSON_Parse(Attribute_json_Data);
+                char *hubJsonData = " ";
+                cJSON *root = cJSON_Parse(attributeJsonData);
                 To_HUB_json = cJSON_CreateObject();
                 if (To_HUB_json == NULL)
                 {
@@ -1329,9 +1329,9 @@ int SendData(char *Attribute_json_Data)
                 cJSON_AddItemToObject(To_HUB_json, "d", device = cJSON_CreateArray());
                 cJSON_AddStringToObject(To_HUB_json, "dt", cJSON_GetObjectItem(parameter, "time")->valuestring);
 
-                int parameters_count = cJSON_GetArraySize(root);    
+                int parametersCount = cJSON_GetArraySize(root);    
 
-                for (int i = 0; i < parameters_count; i++) 
+                for (int i = 0; i < parametersCount; i++) 
                 {
                     cJSON *parameter = cJSON_GetArrayItem(root, i);
                     cJSON_AddItemToArray(device, Device_data1 = cJSON_CreateObject());
@@ -1341,10 +1341,10 @@ int SendData(char *Attribute_json_Data)
                     data1 = cJSON_GetObjectItem(parameter, "data");
                     cJSON_AddItemToObject(Device_data1, "d", data1);
                 }
-                To_HUB_json_data =  cJSON_PrintUnformatted(To_HUB_json);
+                hubJsonData =  cJSON_PrintUnformatted(To_HUB_json);
                 cJSON_Delete(To_HUB_json);
                 printk("INFO_SDK [%s-%d] : Publishing data...\n", __func__, __LINE__);
-                errPub = data_publish(&client, SYNC_resp_new.Broker.pubTopic, 1, To_HUB_json_data, strlen(To_HUB_json_data));
+                errPub = data_publish(&client, SYNC_resp_new.Broker.pubTopic, 1, hubJsonData, strlen(hubJsonData));
 
                 for(int ss=0;ss<25;ss++)
                     LastTime[ss] = NowTime[ss];
@@ -1352,7 +1352,7 @@ int SendData(char *Attribute_json_Data)
   
                 if ( errPub == 0)
                 {
-                    printk("INFO_SDK [%s-%d] : Publish data id %d : Success\n", __func__, __LINE__, mid_num);
+                    printk("INFO_SDK [%s-%d] : Publish data id %d : Success\n", __func__, __LINE__, midNum);
                 } 
                 else
                 {
@@ -1373,42 +1373,42 @@ int SendData(char *Attribute_json_Data)
 /**********************************************************
         calculate the difference between two datetime
 ***********************************************************/
-int GetTimeDiff(char newT[25], char oldT[25])
+int GetTimeDiff(char newTime[25], char oldTime[25])
 {
     // Create a newTm, oldTm struct to hold the parsed new and old date and time
     struct tm newTm, oldTm;
  
     // Parse the new date&time input string
-    if (strptime(newT, "%Y-%m-%dT%H:%M:%S.000Z", &newTm) == NULL) {
+    if (strptime(newTime, "%Y-%m-%dT%H:%M:%S.000Z", &newTm) == NULL) {
         printk("ERR_SDK [%s-%d] : Failed to parse date string\n", __func__, __LINE__);
         return 1;
     }
  
     // Convert newTm struct to epoch time
-    time_t new_epoch_time = mktime(&newTm);
+    time_t newEpochTime = mktime(&newTm);
  
-    if (new_epoch_time == -1) {
+    if (newEpochTime == -1) {
         printk("ERR_SDK [%s-%d] : Failed to convert newTm struct to epoch time\n", __func__, __LINE__);
         return 1;
     }
 
     // Parse the old date&time input string
-    if (strptime(oldT, "%Y-%m-%dT%H:%M:%S.000Z", &oldTm) == NULL) {
+    if (strptime(oldTime, "%Y-%m-%dT%H:%M:%S.000Z", &oldTm) == NULL) {
         printk("ERR_SDK [%s-%d] : Failed to parse date string\n", __func__, __LINE__);
         return 1;
     }
  
     // Convert oldTm struct to epoch time
-    time_t old_epoch_time = mktime(&oldTm);
+    time_t oldEpochTime = mktime(&oldTm);
  
-    if (old_epoch_time == -1) {
+    if (oldEpochTime == -1) {
         printk("ERR_SDK [%s-%d] : Failed to convert oldTm struct to epoch time\n", __func__, __LINE__);
         return 1;
     }
  
-    int time_diff = (new_epoch_time - old_epoch_time);
-    printk("INFO_SDK [%s-%d] : Time Difference : %d\n", __func__, __LINE__, time_diff);
-    return time_diff;
+    int timeDiff = (newEpochTime - oldEpochTime);
+    printk("INFO_SDK [%s-%d] : Time Difference : %d\n", __func__, __LINE__, timeDiff);
+    return timeDiff;
 }
 
 
@@ -1417,7 +1417,7 @@ int GetTimeDiff(char newT[25], char oldT[25])
 *************************************************/
 int UpdateTwin_Str(char *key,char *value)
 {
-    char *Twin_Json_Data;
+    char *twinJsonData;
     cJSON *root = cJSON_CreateObject();
 
     if (root == NULL)
@@ -1427,18 +1427,19 @@ int UpdateTwin_Str(char *key,char *value)
     }
 
     cJSON_AddStringToObject(root, key, value);
-    Twin_Json_Data = cJSON_PrintUnformatted(root);
+    twinJsonData = cJSON_PrintUnformatted(root);
  
-    if ( ! data_publish(&client, SYNC_resp_new.Broker.pubShadow, 0, Twin_Json_Data, strlen(Twin_Json_Data)))
+    if ( ! data_publish(&client, SYNC_resp_new.Broker.pubShadow, 0, twinJsonData, strlen(twinJsonData)))
     {
         printk("INFO_SDK [%s-%d] : Twin Update Data Publish : Success\n",__func__, __LINE__);
     }
     else{
         printk("ERR_SDK [%s-%d] : Twin Update Data Publish : Fail\n",__func__, __LINE__);
+        return 1;
     }
 
     cJSON_Delete(root);
-    free(Twin_Json_Data);
+    free(twinJsonData);
 
     return 0;
 }
@@ -1448,7 +1449,7 @@ int UpdateTwin_Str(char *key,char *value)
     This will UpdateTwin Integer property to IoTConnect
 *************************************************/
 int UpdateTwin_Int(char *key, int value){
-    char *Twin_Json_Data;
+    char *twinJsonData;
     cJSON *root;
     root  = cJSON_CreateObject();
 
@@ -1459,45 +1460,48 @@ int UpdateTwin_Int(char *key, int value){
     }
 
     cJSON_AddNumberToObject(root, key, value);
-    Twin_Json_Data = cJSON_PrintUnformatted(root);
+    twinJsonData = cJSON_PrintUnformatted(root);
 
  
-    if ( ! data_publish(&client, SYNC_resp_new.Broker.pubShadow, 0, Twin_Json_Data, strlen(Twin_Json_Data)))
+    if ( ! data_publish(&client, SYNC_resp_new.Broker.pubShadow, 0, twinJsonData, strlen(twinJsonData)))
     {
         printk("INFO_SDK [%s-%d] : Twin Update Data Publish : Success\n",__func__, __LINE__);
     }
     else{
         printk("ERR_SDK [%s-%d] : Twin Update Data Publish : Fail\n",__func__, __LINE__);
+        return 1;
     }
 
     cJSON_Delete(root);
-    free(Twin_Json_Data);
+    free(twinJsonData);
+
+    return 0;
 }
 
 
 /**************************************************
     this will send the ACK of receiving Commands
 **************************************************/
-int SendAck(char *Ack_Data, int messageType)
+int SendAck(char *ackData, int messageType)
 {
-    cJSON *Ack_Json2,*sdk_info,*device_input;
-    char *Ack_Json_Data;
-    Ack_Json2 = cJSON_CreateObject();
-    if (Ack_Json2 == NULL)
+    cJSON *ackJson;
+    char *ackJsonData;
+    ackJson = cJSON_CreateObject();
+    if (ackJson == NULL)
     {
-        printk("ERR_SDK [%s-%d] : Unable to allocate Ack_Json2 Object in SendAck\n",__func__, __LINE__);
+        printk("ERR_SDK [%s-%d] : Unable to allocate ackJson Object in SendAck\n",__func__, __LINE__);
         return 1;    
     }
 
-    cJSON_AddStringToObject(Ack_Json2, "dt",Get_Time());
-    cJSON *root = cJSON_Parse(Ack_Data);
-    cJSON_AddItemToObject(Ack_Json2, "d", root);
-    Ack_Json_Data = cJSON_PrintUnformatted(Ack_Json2);
+    cJSON_AddStringToObject(ackJson, "dt",Get_Time());
+    cJSON *root = cJSON_Parse(ackData);
+    cJSON_AddItemToObject(ackJson, "d", root);
+    ackJsonData = cJSON_PrintUnformatted(ackJson);
 
     cJSON_Delete(root);
-    cJSON_Delete(Ack_Json2);
+    cJSON_Delete(ackJson);
 
-    if ( ! data_publish(&client, SYNC_resp_new.Broker.ack_pub, 1, Ack_Json_Data, strlen(Ack_Json_Data)))
+    if ( ! data_publish(&client, SYNC_resp_new.Broker.ack_pub, 1, ackJsonData, strlen(ackJsonData)))
     {
         printk("INFO_SDK [%s-%d] : Ack_Json_Data Publish : Success\n\n",__func__, __LINE__);
     }

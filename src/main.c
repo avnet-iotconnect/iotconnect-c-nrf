@@ -10,7 +10,7 @@
   
   for more help and informationvisit https://help.iotconnect.io SDK section
 
-    modified 23/12/2024
+    modified 24/12/2024
 ********************************************************************************************/
 
 /********************************************************************************************
@@ -195,16 +195,16 @@ void Twin_CallBack(char *topic, char *payload)
                 deviceType = device->type;
                 if(deviceType == 8)
                 { 
-                    int  int_val;
-                    double diff, flot_val;
-                    flot_val = (cJSON_GetObjectItem(D, key))->valuedouble;
-                    int_val = flot_val;
-                    diff = flot_val - int_val;
+                    int  intVal;
+                    double diff, flotVal;
+                    flotVal = (cJSON_GetObjectItem(D, key))->valuedouble;
+                    intVal = flotVal;
+                    diff = flotVal - intVal;
                     if (diff > 0) {} 
                     if (diff <= 0)
                     {
                         printk("FIRMWARE : int value: %d\n", (cJSON_GetObjectItem(D, key))->valueint);
-                        UpdateTwin_Int(key, int_val);
+                        UpdateTwin_Int(key, intVal);
                     }
                 }
                 if (deviceType == 16)
@@ -235,42 +235,42 @@ void Device_CallBack(char *topic, char *payload)
     printk("FIRMWARE : Device Callback\r\n");
     printk("FIRMWARE : Topic: %s\r\n", topic);
     
-    cJSON *ackJson, *sub_value, *in_url;
-    int Status = 0,msgType=0;
-    char *cmd_ackID = NULL;
+    cJSON *ackJson, *subValue, *inUrl;
+    int status = 0,msgType=0;
+    char *ackID = NULL;
     char *ackJsonData = NULL;
 
     cJSON *root = cJSON_Parse(payload);
 
     if(cJSON_HasObjectItem(root, "ct"))
     {
-        int ct_value = (cJSON_GetObjectItem(root, "ct")->valueint);
+        int ctValue = (cJSON_GetObjectItem(root, "ct")->valueint);
         if(cJSON_HasObjectItem(root, "ack"))
         {
-            cmd_ackID = (cJSON_GetObjectItem(root, "ack")->valuestring);
+            ackID = (cJSON_GetObjectItem(root, "ack")->valuestring);
         }
 
-        if(ct_value == 0){
-            Status = 2,msgType = 0;
+        if(ctValue == 0){
+            status = 2,msgType = 0;
             printk("FIRMWARE : Command Payload: %s\r\n", payload);
         }
-        if(ct_value == 1){
-            Status = 5,msgType = 1;
+        if(ctValue == 1){
+            status = 5,msgType = 1;
 
-            sub_value = cJSON_GetObjectItem(root,"urls");
-            if(cJSON_IsArray(sub_value)){
-                int url_count = cJSON_GetArraySize(sub_value);
-                for(int i = 0; i < url_count; i++)
+            subValue = cJSON_GetObjectItem(root,"urls");
+            if(cJSON_IsArray(subValue)){
+                int urlCount = cJSON_GetArraySize(subValue);
+                for(int i = 0; i < urlCount; i++)
                 {
-                    in_url = cJSON_GetArrayItem(sub_value, i);
+                    inUrl = cJSON_GetArrayItem(subValue, i);
 
-                    char* OTA_url = cJSON_GetObjectItem(in_url, "url")->valuestring;
-                    printk("FIRMWARE : OTA URL : %s\r\n", OTA_url);
+                    char* otaUrl = cJSON_GetObjectItem(inUrl, "url")->valuestring;
+                    printk("FIRMWARE : OTA URL : %s\r\n", otaUrl);
                 }
             }
         }
-        if(ct_value == 2){
-            Status = 2,msgType = 2;
+        if(ctValue == 2){
+            status = 2,msgType = 2;
             printk("FIRMWARE : Module Command Payload: %s\r\n", payload);
         }
     }
@@ -281,9 +281,9 @@ void Device_CallBack(char *topic, char *payload)
         printk("FIRMWARE : Unable to allocate ackJson Object in Device_CallBack\n");
         return ;    
     }
-    cJSON_AddStringToObject(ackJson, "ack",cmd_ackID);
+    cJSON_AddStringToObject(ackJson, "ack",ackID);
     cJSON_AddNumberToObject(ackJson, "type", msgType);
-    cJSON_AddNumberToObject(ackJson, "st", Status);
+    cJSON_AddNumberToObject(ackJson, "st", status);
     cJSON_AddStringToObject(ackJson, "msg","Not Implemented");
 
     ackJsonData = cJSON_PrintUnformatted(ackJson);
